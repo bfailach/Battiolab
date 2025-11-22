@@ -1,10 +1,15 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
-let isDev;
+// Prefer environment-based detection to avoid loading ESM-only modules during tests
+const isDev = (process.env.ELECTRON_IS_DEV === 'true') || (process.env.NODE_ENV === 'development');
+
+function getStartUrl() {
+  return isDev
+    ? 'http://localhost:3000'
+    : `file://${path.join(__dirname, 'build/index.html')}`;
+}
 
 async function createWindow() {
-  isDev = (await import('electron-is-dev')).default;
-
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -14,10 +19,7 @@ async function createWindow() {
     }
   });
 
-  // En desarrollo, apunta al servidor de desarrollo de React
-  const startUrl = isDev 
-    ? 'http://localhost:3000' 
-    : `file://${path.join(__dirname, 'build/index.html')}`;
+  const startUrl = getStartUrl();
 
   await mainWindow.loadURL(startUrl);
 
@@ -26,16 +28,20 @@ async function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow);
+if (app && typeof app.whenReady === 'function') {
+  app.whenReady().then(createWindow);
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
-});
+  app.on('window-all-closed', () => {
+    if (process.platform !== 'darwin') {
+      app.quit();
+    }
+  });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) {
-    createWindow();
-  }
-}); 
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      createWindow();
+    }
+  });
+}
+
+module.exports = { getStartUrl };
