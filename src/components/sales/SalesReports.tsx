@@ -84,7 +84,7 @@ const SalesReports = () => {
   // Filtrar ventas por rango de tiempo seleccionado
   const getFilteredSales = () => {
     const now = new Date();
-    let startDate = new Date();
+    const startDate = new Date();
 
     switch (timeRange) {
       case 'day':

@@ -23,7 +23,7 @@ export interface CreateClientData {
   status: boolean;
 }
 
-export interface UpdateClientData extends Partial<CreateClientData> {}
+export type UpdateClientData = Partial<CreateClientData>;
 
 const clientsService = {
   getAll: async (): Promise<Client[]> => {

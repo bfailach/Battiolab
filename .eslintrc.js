@@ -1,4 +1,5 @@
 module.exports = {
+  ignorePatterns: ['build/', 'dist/', 'public/', 'node_modules/'],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 2020,
@@ -29,4 +30,15 @@ module.exports = {
     'react/prop-types': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off'
   }
+  ,
+  overrides: [
+    {
+      files: ['server/**/*.js', 'tests/**/*.js', 'main.js'],
+      env: { node: true },
+      rules: {
+        '@typescript-eslint/no-var-requires': 'off'
+      }
+    }
+  ]
 };
+

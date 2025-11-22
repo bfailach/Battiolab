@@ -259,7 +259,7 @@ const ProductDetails = ({ product, onEdit, onUpdateStock, onBack, onDelete }: Pr
       >
         <DialogTitle>Confirmar Eliminación</DialogTitle>
         <DialogContent>
-          ¿Está seguro que desea eliminar el producto "{product.name}"? Esta acción no se puede deshacer.
+          ¿Está seguro que desea eliminar el producto <strong>{product.name}</strong>? Esta acción no se puede deshacer.
         </DialogContent>
         <DialogActions>
           <Button 

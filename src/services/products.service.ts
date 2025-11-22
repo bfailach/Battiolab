@@ -30,7 +30,7 @@ export interface CreateProductData {
   status?: 'active' | 'inactive' | 'discontinued';
 }
 
-export interface UpdateProductData extends Partial<CreateProductData> {}
+export type UpdateProductData = Partial<CreateProductData>;
 
 class ProductsService {
   private transformProduct(data: any): Product {

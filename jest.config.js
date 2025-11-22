@@ -1,6 +1,6 @@
 module.exports = {
   roots: ['<rootDir>/tests'],
-  testEnvironment: 'jsdom',
+  testEnvironment: 'node',
   transform: {},
   moduleFileExtensions: ['js', 'jsx', 'ts', 'tsx', 'json', 'node']
 };

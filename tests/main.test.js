@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-var-requires */
 const { getStartUrl } = require('../main');
 
 test('getStartUrl returns a string URL', () => {
