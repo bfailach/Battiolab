@@ -1,0 +1,7 @@
+Change ID,Type,Branch,PR,Files Modified,Summary,Key Commands,Status
+1,Dependency bump,update-axios,#8,"package.json, package-lock.json","Updated axios to ^1.13.2; small test-related change in server/index.js to avoid logs during tests","git checkout -b update-axios; npm install axios@latest; git push; gh pr create",Open
+2,Dependency bump,update-electron-builder,#9,"package.json, package-lock.json","Bumped electron-builder to ^26.0.12 to mitigate app-builder-lib vulnerabilities","git checkout -b update-electron-builder; npm install; git push; gh pr create",Open
+3,Dependency bump,update-electron,#10,"package.json, package-lock.json","Bumped electron to ^39.2.3; handled EBUSY by stopping electron processes and reinstalling","git checkout -b update-electron; npm install; git push; gh pr create",Open
+4,Frontend overrides,update-react-scripts,#11,"package.json, package-lock.json","Added npm 'overrides' for svgo, nth-check, css-select, postcss, webpack-dev-server to mitigate transitive vulnerabilities","git checkout -b update-react-scripts; edit package.json; npm install; git push; gh pr create",Open
+5,Test fix,main (server/index.js),N/A,"server/index.js","Skip MongoDB connection during import when NODE_ENV=test to avoid Jest open handles","apply_patch; git commit; npm test -- --detectOpenHandles",Merged locally
+6,CI workflow,.github/workflows/nodejs-ci.yml,N/A,".github/workflows/nodejs-ci.yml","CI runs: npm ci, npm audit, lint, coverage, build, upload artifacts (already present)","review workflow",Present
