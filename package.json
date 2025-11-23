@@ -10,6 +10,7 @@
     "dev": "concurrently \"npm run server\" \"cross-env BROWSER=none npm run react-start\" \"npm run start\"",
     "build": "react-scripts build",
     "test": "jest --config jest.config.js --runInBand",
+    "coverage": "jest --config jest.config.js --coverage --coverageDirectory=coverage --runInBand",
     "lint": "eslint . --ext .js,.jsx,.ts,.tsx",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,json,md,css}\"",
     "eject": "react-scripts eject"
