@@ -28,7 +28,7 @@ export interface CreateEmployeeData {
   salary: number;
 }
 
-export interface UpdateEmployeeData extends Partial<CreateEmployeeData> {}
+export type UpdateEmployeeData = Partial<CreateEmployeeData>;
 
 class EmployeesService {
   private transformEmployee(data: any): Employee {
