@@ -101,31 +101,37 @@ app.use((req, res, next) => {
 });
 
 // Conectar a MongoDB
-console.log('Intentando conectar a MongoDB:', process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab');
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-})
-  .then(() => {
-    console.log('Conectado a MongoDB');
-    // List all collections to verify database access
-    mongoose.connection.db.listCollections().toArray()
-      .then(collections => {
-        console.log('Colecciones disponibles:', collections.map(c => c.name));
-      })
-      .catch(err => console.error('Error al listar colecciones:', err));
+if (process.env.NODE_ENV === 'test') {
+  // Evitar conectar a MongoDB durante la importación en tests.
+  // Esto previene operaciones asíncronas (por ejemplo lista de colecciones)
+  // que pueden continuar después de que Jest finaliza y generan warnings.
+  console.log('NODE_ENV=test - omitiendo conexión a MongoDB en import (tests)');
+} else {
+  console.log('Intentando conectar a MongoDB:', process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab');
+  mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab', {
+    useNewUrlParser: true,
+    useUnifiedTopology: true
   })
-  .catch(err => {
-    console.error('Error al conectar a MongoDB:', err);
-    console.error('Detalles de conexión:',
-      {
-        uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab',
-        errorName: err.name,
-        errorMessage: err.message,
-        errorStack: err.stack
-      }
-    );
-  });
+    .then(() => {
+      console.log('Conectado a MongoDB');
+      mongoose.connection.db.listCollections().toArray()
+        .then(collections => {
+          console.log('Colecciones disponibles:', collections.map(c => c.name));
+        })
+        .catch(err => console.error('Error al listar colecciones:', err));
+    })
+    .catch(err => {
+      console.error('Error al conectar a MongoDB:', err);
+      console.error('Detalles de conexión:',
+        {
+          uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/battiolab',
+          errorName: err.name,
+          errorMessage: err.message,
+          errorStack: err.stack
+        }
+      );
+    });
+}
 
 // Ruta de prueba para verificar el parsing de JSON
 app.post('/api/test-body-parser', (req, res) => {
@@ -150,6 +156,12 @@ app.use('/api/employees', employeesRoutes);
 app.use('/api/sales', salesRoutes);
 
 const PORT = process.env.PORT || 3006; // Changed from 3005 to avoid conflicts
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en puerto ${PORT}`);
-});
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Servidor corriendo en puerto ${PORT}`);
+  });
+} else {
+  // Export app for testing (supertest) without starting the listener
+  module.exports = app;
+}
