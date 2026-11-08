@@ -1,5 +1,4 @@
 import { alpha, createTheme } from '@mui/material/styles';
-import { PaletteMode } from '@mui/material';
 
 /**
  * Paleta original de Battiolab: violeta #3D365C, magenta #C95792, ámbar #F8B55F y morado #7C4585.
@@ -52,37 +51,37 @@ declare module '@mui/material/styles' {
   }
 }
 
-export const createAppTheme = (mode: PaletteMode) => {
-  const dark = mode === 'dark';
-  const bg = dark ? brand.night : '#F4F3F8';
-  const paper = dark ? '#242036' : '#FFFFFF';
-  const raised = dark ? '#2E2944' : '#F8F7FB';
-  const line = dark ? '#3B3553' : '#E4E2EC';
-  const text = dark ? '#F5F2FA' : '#2B2541';
-  const muted = dark ? '#ABA3C2' : '#625C78';
-  const primary = dark ? brand.magenta : brand.violet;
-  const primaryHover = dark ? '#B94B82' : '#2D284C';
+/** Battiolab usa solo tema oscuro. */
+export const createAppTheme = () => {
+  const bg = brand.night;
+  const paper = '#242036';
+  const raised = '#2E2944';
+  const line = '#3B3553';
+  const text = '#F5F2FA';
+  const muted = '#ABA3C2';
+  const primary = brand.magenta;
+  const primaryHover = '#B94B82';
 
   return createTheme({
     palette: {
-      mode,
+      mode: 'dark',
       primary: { main: primary, contrastText: '#FFFFFF' },
-      secondary: { main: dark ? brand.violetLight : brand.violetSoft, contrastText: dark ? brand.night : '#FFFFFF' },
+      secondary: { main: brand.violetLight, contrastText: brand.night },
       charge: { main: brand.charge, dark: '#E9A23F', light: '#FFD08C', contrastText: brand.violet },
       warning: { main: brand.low },
       error: { main: brand.empty },
-      success: { main: dark ? brand.ok : '#1F9D62' },
-      info: { main: dark ? brand.violetLight : brand.violetSoft },
+      success: { main: brand.ok },
+      info: { main: brand.violetLight },
       background: { default: bg, paper },
-      text: { primary: text, secondary: muted, disabled: dark ? '#6E6787' : '#A8A3B8' },
+      text: { primary: text, secondary: muted, disabled: '#6E6787' },
       divider: line,
       action: {
-        hover: dark ? 'rgba(255,255,255,0.06)' : 'rgba(61,54,92,0.05)',
-        selected: dark ? 'rgba(255,255,255,0.1)' : 'rgba(61,54,92,0.08)'
+        hover: 'rgba(255,255,255,0.06)',
+        selected: 'rgba(255,255,255,0.1)'
       },
       line,
       selected: { bg: brand.magenta, text: '#FFFFFF' },
-      surface: { base: paper, raised, sunken: dark ? '#15121F' : '#ECEAF2' },
+      surface: { base: paper, raised, sunken: '#15121F' },
       sidebar: {
         bg: brand.violet,
         text: '#FFFFFF',
@@ -119,11 +118,11 @@ export const createAppTheme = (mode: PaletteMode) => {
             '*, *::before, *::after': { transition: 'none !important', animation: 'none !important' }
           },
           // El espacio del scroll queda reservado: el contenido no salta al cambiar entre páginas largas y cortas
-          html: { scrollbarGutter: 'stable', scrollbarWidth: 'thin', scrollbarColor: `${dark ? '#4A4366' : '#C3BDD6'} transparent` },
+          html: { scrollbarGutter: 'stable', scrollbarWidth: 'thin', scrollbarColor: `${'#4A4366'} transparent` },
           '::-webkit-scrollbar': { width: 10, height: 10 },
           '::-webkit-scrollbar-track': { background: 'transparent' },
           '::-webkit-scrollbar-thumb': {
-            backgroundColor: dark ? '#4A4366' : '#C3BDD6',
+            backgroundColor: '#4A4366',
             borderRadius: 999,
             border: '3px solid transparent',
             backgroundClip: 'content-box'
@@ -144,7 +143,7 @@ export const createAppTheme = (mode: PaletteMode) => {
           root: { borderRadius: 999, paddingInline: 20, minHeight: 40, fontSize: '0.875rem' },
           sizeSmall: { minHeight: 32, paddingInline: 14, fontSize: '0.8125rem' },
           sizeLarge: { minHeight: 50, paddingInline: 28, fontSize: '0.9375rem' },
-          outlined: { borderColor: dark ? 'rgba(255,255,255,0.3)' : 'rgba(61,54,92,0.3)', color: text, '&:hover': { borderColor: text } },
+          outlined: { borderColor: 'rgba(255,255,255,0.3)', color: text, '&:hover': { borderColor: text } },
           containedPrimary: { '&:hover': { backgroundColor: primaryHover } }
         }
       },
@@ -177,7 +176,7 @@ export const createAppTheme = (mode: PaletteMode) => {
             borderRadius: 12,
             backgroundColor: raised,
             '& .MuiOutlinedInput-notchedOutline': { borderColor: line },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: dark ? '#5A5276' : '#BDB7CF' },
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#5A5276' },
             '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: primary, borderWidth: 1.5 }
           },
           input: { '&::placeholder': { color: muted, opacity: 0.8 } }
@@ -199,7 +198,7 @@ export const createAppTheme = (mode: PaletteMode) => {
         }
       },
       MuiTableRow: {
-        styleOverrides: { hover: { '&:hover': { backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(61,54,92,0.035)' } } }
+        styleOverrides: { hover: { '&:hover': { backgroundColor: 'rgba(255,255,255,0.04)' } } }
       },
       MuiTableSortLabel: { styleOverrides: { root: { '&.Mui-active': { color: text } } } },
       MuiDialog: {
@@ -220,10 +219,10 @@ export const createAppTheme = (mode: PaletteMode) => {
       MuiAlert: {
         styleOverrides: {
           root: { borderRadius: 14, alignItems: 'center' },
-          standardInfo: { backgroundColor: alpha(brand.violetLight, dark ? 0.12 : 0.18) },
-          standardWarning: { backgroundColor: alpha(brand.low, dark ? 0.12 : 0.14) },
-          standardError: { backgroundColor: alpha(brand.empty, dark ? 0.12 : 0.1) },
-          standardSuccess: { backgroundColor: alpha(brand.ok, dark ? 0.1 : 0.12) }
+          standardInfo: { backgroundColor: alpha(brand.violetLight, 0.12) },
+          standardWarning: { backgroundColor: alpha(brand.low, 0.12) },
+          standardError: { backgroundColor: alpha(brand.empty, 0.12) },
+          standardSuccess: { backgroundColor: alpha(brand.ok, 0.1) }
         }
       },
       MuiSwitch: {

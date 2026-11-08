@@ -145,17 +145,17 @@ const InventoryScanning: React.FC = () => {
             <Box
               key={result.at}
               aria-live="polite"
-              sx={(t) => ({
+              sx={{
                 p: 3,
                 borderRadius: 3,
                 border: '2px solid',
                 borderColor: levelColor[level],
-                bgcolor: alpha(levelColor[level], t.palette.mode === 'dark' ? 0.12 : 0.05),
+                bgcolor: alpha(levelColor[level], 0.12),
                 display: 'flex',
                 gap: 3,
                 alignItems: 'center',
                 flexWrap: 'wrap'
-              })}
+              }}
             >
               <ProductThumb imageUrl={result.product.imageUrl} category={result.product.category} size={96} radius={3} />
               <Box sx={{ flex: 1, minWidth: 220 }}>

@@ -92,7 +92,7 @@ export const StatStrip: React.FC<{ stats: Stat[] }> = ({ stats }) => (
         <Typography variant="body2" color="text.secondary">
           {s.label}
         </Typography>
-        <Typography component="p" sx={(t) => ({ ...wide, fontSize: { xs: '1.5rem', lg: '1.875rem' }, mt: 0.5, color: s.accent && t.palette.mode === 'dark' ? 'charge.main' : 'text.primary', lineHeight: 1.15 })}>
+        <Typography component="p" sx={{ ...wide, fontSize: { xs: '1.5rem', lg: '1.875rem' }, mt: 0.5, color: s.accent ? 'charge.main' : 'text.primary', lineHeight: 1.15 }}>
           {s.value}
         </Typography>
         {s.hint && (

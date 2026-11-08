@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 import {
   Alert,
   Button,
@@ -8,7 +8,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-  PaletteMode,
   Snackbar
 } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
@@ -24,8 +23,6 @@ interface ConfirmOptions {
 }
 
 interface UIContextType {
-  mode: PaletteMode;
-  toggleMode: () => void;
   notify: (message: string, severity?: Severity) => void;
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
@@ -38,35 +35,11 @@ export const useUI = () => {
   return ctx;
 };
 
-const MODE_KEY = 'battiolab:mode';
+const theme = createAppTheme();
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [mode, setMode] = useState<PaletteMode>(() => {
-    try {
-      const saved = localStorage.getItem(MODE_KEY);
-      if (saved === 'light' || saved === 'dark') return saved;
-    } catch {
-      /* sin almacenamiento */
-    }
-    // El diseño de Battiolab parte del tema oscuro
-    return 'dark';
-  });
   const [toast, setToast] = useState<{ message: string; severity: Severity; key: number } | null>(null);
   const [dialog, setDialog] = useState<(ConfirmOptions & { resolve: (v: boolean) => void }) | null>(null);
-
-  const theme = useMemo(() => createAppTheme(mode), [mode]);
-
-  const toggleMode = useCallback(() => {
-    setMode((m) => {
-      const next = m === 'light' ? 'dark' : 'light';
-      try {
-        localStorage.setItem(MODE_KEY, next);
-      } catch {
-        /* sin almacenamiento */
-      }
-      return next;
-    });
-  }, []);
 
   const notify = useCallback((message: string, severity: Severity = 'success') => {
     setToast({ message, severity, key: Date.now() });
@@ -85,7 +58,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <UIContext.Provider value={{ mode, toggleMode, notify, confirm }}>
+      <UIContext.Provider value={{ notify, confirm }}>
         {children}
         <Snackbar
           key={toast?.key}

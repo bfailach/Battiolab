@@ -42,7 +42,7 @@ const ProductThumb: React.FC<{ imageUrl?: string; category: string; size?: numbe
         overflow: 'hidden',
         display: 'grid',
         placeItems: 'center',
-        bgcolor: t.palette.mode === 'dark' ? '#2E2944' : '#ECEAF2',
+        bgcolor: '#2E2944',
         color: t.palette.text.secondary,
         '& svg': { fontSize: typeof size === 'number' ? size * 0.5 : 40 }
       })}

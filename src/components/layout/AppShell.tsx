@@ -6,7 +6,6 @@ import {
   Button,
   ButtonBase,
   Divider,
-  Drawer,
   IconButton,
   ListItemIcon,
   Grow,
@@ -20,17 +19,12 @@ import {
   useMediaQuery
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
-import MenuIcon from '@mui/icons-material/Menu';
-import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
-import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
 import Logo from '../shared/Logo';
 import { NAV, NavChild, NavModule, findActive } from './nav';
 import { useAuth } from '../../contexts/AuthContext';
-import { useUI } from '../../contexts/UIContext';
 import { brand } from '../../theme';
 import { initials } from '../../utils/format';
 import productsService from '../../services/products.service';
@@ -70,7 +64,7 @@ const moduleCount = (m: NavModule, badges: Record<BadgeKey, number>) =>
 
 /** Vidrio ahumado: violeta oscuro translúcido con desenfoque del contenido que pasa por debajo. */
 const smokedGlass: SxProps<Theme> = {
-  bgcolor: (t: Theme) => alpha('#1E1A2E', t.palette.mode === 'dark' ? 0.62 : 0.74),
+  bgcolor: alpha('#1E1A2E', 0.62),
   backdropFilter: 'blur(22px) saturate(160%)',
   WebkitBackdropFilter: 'blur(22px) saturate(160%)',
   border: `1px solid ${alpha('#FFFFFF', 0.1)}`,
@@ -88,65 +82,17 @@ const Count: React.FC<{ n: number }> = ({ n }) => (
   </Box>
 );
 
-/** Menú completo para pantallas angostas. */
-const MobileMenu: React.FC<{ open: boolean; onClose: () => void; badges: Record<BadgeKey, number> }> = ({ open, onClose, badges }) => {
-  const navigate = useNavigate();
-  const { pathname } = useLocation();
-  const { module: active, child } = findActive(pathname);
-  const go = (to: string) => {
-    navigate(to);
-    onClose();
-  };
-  return (
-    <Drawer anchor="top" open={open} onClose={onClose} PaperProps={{ sx: { ...smokedGlass, borderRadius: '0 0 24px 24px', border: 0, maxHeight: '90vh' } as SxProps<Theme> }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 2 }}>
-        <Logo size={24} />
-        <IconButton onClick={onClose} aria-label="Cerrar menú" sx={{ color: '#fff' }}>
-          <CloseIcon />
-        </IconButton>
-      </Box>
-      <Box component="nav" aria-label="Navegación principal" sx={{ px: 1.5, pb: 2.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
-        {NAV.map((m) => {
-          const isActive = active?.path === m.path;
-          return (
-            <Box key={m.path} sx={{ p: 1, borderRadius: 4, bgcolor: isActive ? alpha('#FFFFFF', 0.06) : 'transparent' }}>
-              <ButtonBase
-                onClick={() => go(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
-                sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, px: 1.25, py: 1, borderRadius: 999, fontWeight: 700, color: isActive ? brand.charge : '#fff', '& svg': { fontSize: 20 } }}
-              >
-                {m.icon}
-                {m.label}
-              </ButtonBase>
-              {m.children?.map((c) => {
-                const n = c.badgeKey ? badges[c.badgeKey] : 0;
-                const on = isActive && child?.path === c.path;
-                return (
-                  <ButtonBase
-                    key={c.path}
-                    onClick={() => go(`${m.path}/${c.path}`)}
-                    sx={{ width: '100%', justifyContent: 'space-between', pl: 5, pr: 1.25, py: 0.75, borderRadius: 999, fontSize: '0.875rem', fontWeight: on ? 700 : 500, color: on ? '#fff' : alpha('#FFFFFF', 0.7) }}
-                  >
-                    {c.label}
-                    {n > 0 && <Count n={n} />}
-                  </ButtonBase>
-                );
-              })}
-            </Box>
-          );
-        })}
-      </Box>
-    </Drawer>
-  );
-};
-
 /**
  * Módulo de la barra superior. Al pasar el mouse (o enfocar con el teclado) despliega sus secciones.
  */
-const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: string; badges: Record<BadgeKey, number> }> = ({
+type NavVariant = 'full' | 'labels' | 'icons';
+
+const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: string; badges: Record<BadgeKey, number>; variant: NavVariant }> = ({
   module: m,
   active,
   activeChild,
-  badges
+  badges,
+  variant
 }) => {
   const navigate = useNavigate();
   const anchor = useRef<HTMLButtonElement>(null);
@@ -170,18 +116,20 @@ const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: stri
     navigate(to);
   };
 
-  return (
-    <Box onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+  const iconsOnly = variant === 'icons';
+  const button = (
       <ButtonBase
         ref={anchor}
         onClick={() => go(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
         aria-current={active ? 'page' : undefined}
+        aria-label={iconsOnly ? m.label : undefined}
         aria-haspopup={m.children ? 'menu' : undefined}
         aria-expanded={m.children ? open : undefined}
         sx={{
           position: 'relative',
           gap: 0.875,
-          px: 1.75,
+          px: iconsOnly ? 0 : variant === 'labels' ? 1.5 : 1.75,
+          width: iconsOnly ? 40 : 'auto',
           height: 40,
           borderRadius: 999,
           fontWeight: 700,
@@ -193,15 +141,27 @@ const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: stri
           '& svg': { fontSize: 18 }
         }}
       >
-        {m.icon}
-        {m.label}
-        {m.children && (
+        {variant !== 'labels' && m.icon}
+        {!iconsOnly && m.label}
+        {m.children && !iconsOnly && (
           <ExpandMoreIcon sx={{ fontSize: '16px !important', ml: -0.25, opacity: 0.7, transition: 'transform 160ms', transform: open ? 'rotate(180deg)' : 'none' }} />
         )}
         {n > 0 && !active && (
-          <Box component="span" aria-label={`${n} pendientes`} sx={{ position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: '50%', bgcolor: brand.charge }} />
+          <Box component="span" aria-label={`${n} pendientes`} sx={{ position: 'absolute', top: 7, right: iconsOnly ? 6 : 8, width: 7, height: 7, borderRadius: '50%', bgcolor: brand.charge }} />
         )}
       </ButtonBase>
+  );
+
+  return (
+    <Box onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+      {/* Sin submenú y solo con ícono, el nombre aparece en una etiqueta */}
+      {iconsOnly && !m.children ? (
+        <Tooltip title={m.label}>
+          {button}
+        </Tooltip>
+      ) : (
+        button
+      )}
       {m.children && (
         <Popper open={open} anchorEl={anchor.current} placement="bottom" transition sx={{ zIndex: 1300 }} modifiers={[{ name: 'offset', options: { offset: [0, 14] } }]}>
           {({ TransitionProps }) => (
@@ -213,6 +173,9 @@ const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: stri
                 onMouseLeave={hide}
                 sx={{ ...smokedGlass, width: 236, p: 0.75, borderRadius: 4 } as SxProps<Theme>}
               >
+                {iconsOnly && (
+                  <Typography sx={{ px: 1.5, pt: 0.75, pb: 0.5, fontSize: '0.75rem', fontWeight: 700, color: alpha('#FFFFFF', 0.55) }}>{m.label}</Typography>
+                )}
                 {(m.children || []).map((c) => {
                   const on = active && activeChild === c.path;
                   const count = c.badgeKey ? badges[c.badgeKey] : 0;
@@ -254,13 +217,15 @@ const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: stri
 
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const theme = useTheme();
-  const wide = useMediaQuery(theme.breakpoints.up('lg'));
-  const [menuOpen, setMenuOpen] = useState(false);
+  // La barra se adapta al ancho: íconos y nombres, solo nombres, o solo íconos
+  const full = useMediaQuery('(min-width:1320px)');
+  const labels = useMediaQuery('(min-width:980px)');
+  const roomy = useMediaQuery('(min-width:1180px)');
+  const variant: NavVariant = full ? 'full' : labels ? 'labels' : 'icons';
   const [accountEl, setAccountEl] = useState<HTMLElement | null>(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { mode, toggleMode } = useUI();
   const { module: active, child } = findActive(pathname);
   const badges = useBadges(pathname);
   const email = user?.user.email || '';
@@ -270,7 +235,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     window.scrollTo({ top: 0 });
   }, [pathname]);
 
-  const plainIcon = { color: 'text.primary', '&:hover': { bgcolor: 'action.hover' } };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
@@ -292,56 +256,44 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             mx: 'auto',
             minHeight: 60,
             display: 'grid',
-            gridTemplateColumns: wide ? '1fr auto 1fr' : 'auto 1fr auto',
+            gridTemplateColumns: '1fr auto 1fr',
             alignItems: 'center',
             gap: 1.5
           }}
         >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.primary' }}>
-            {!wide && (
-              <IconButton onClick={() => setMenuOpen(true)} aria-label="Abrir menú" sx={plainIcon}>
-                <MenuIcon />
-              </IconButton>
-            )}
             <ButtonBase onClick={() => navigate('/dashboard')} aria-label="Ir al inicio" sx={{ px: 1, py: 1, borderRadius: 999 }}>
-              <Logo size={24} color="currentColor" />
+              <Logo size={24} color="currentColor" showText={roomy} />
             </ButtonBase>
           </Box>
 
-          {wide ? (
-            <Box
-              component="nav"
-              aria-label="Navegación principal"
-              sx={{ ...smokedGlass, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.625, borderRadius: 999 } as SxProps<Theme>}
-            >
-              {NAV.map((m) => (
-                <NavItem key={m.path} module={m} active={active?.path === m.path} activeChild={child?.path} badges={badges} />
-              ))}
-            </Box>
-          ) : (
-            <Typography sx={{ fontWeight: 700, textAlign: 'center', color: 'text.primary' }} noWrap>
-              {active?.label}
-              {child ? ` / ${child.label}` : ''}
-            </Typography>
-          )}
+          <Box
+            component="nav"
+            aria-label="Navegación principal"
+            sx={{ ...smokedGlass, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.625, borderRadius: 999 } as SxProps<Theme>}
+          >
+            {NAV.map((m) => (
+              <NavItem key={m.path} module={m} active={active?.path === m.path} activeChild={child?.path} badges={badges} variant={variant} />
+            ))}
+          </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75 }}>
-            {pathname !== '/dashboard/sales/new' && (
-              <Button
-                variant="contained"
-                color="charge"
-                startIcon={<AddIcon />}
-                onClick={() => navigate('/dashboard/sales/new')}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' }, height: 40 }}
-              >
-                Nueva venta
-              </Button>
-            )}
-            <Tooltip title={mode === 'light' ? 'Usar tema oscuro' : 'Usar tema claro'}>
-              <IconButton onClick={toggleMode} aria-label="Cambiar tema" sx={plainIcon}>
-                {mode === 'light' ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
-              </IconButton>
-            </Tooltip>
+            {pathname !== '/dashboard/sales/new' &&
+              (roomy ? (
+                <Button variant="contained" color="charge" startIcon={<AddIcon />} onClick={() => navigate('/dashboard/sales/new')} sx={{ height: 40 }}>
+                  Nueva venta
+                </Button>
+              ) : (
+                <Tooltip title="Nueva venta">
+                  <IconButton
+                    onClick={() => navigate('/dashboard/sales/new')}
+                    aria-label="Nueva venta"
+                    sx={{ width: 40, height: 40, bgcolor: brand.charge, color: brand.violet, '&:hover': { bgcolor: '#E9A23F' } }}
+                  >
+                    <AddIcon />
+                  </IconButton>
+                </Tooltip>
+              ))}
             <Tooltip title="Tu cuenta">
               <IconButton onClick={(e) => setAccountEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
                 <Avatar sx={{ width: 38, height: 38, bgcolor: brand.magenta, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>{initials(displayName)}</Avatar>
@@ -384,7 +336,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </MenuItem>
       </Menu>
 
-      {!wide && <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} badges={badges} />}
 
       <Box component="main" sx={{ px: { xs: 2, md: 5 }, pt: { xs: 2, md: 3 }, pb: 6, maxWidth: 1480, mx: 'auto', width: '100%' }}>
         {children}
