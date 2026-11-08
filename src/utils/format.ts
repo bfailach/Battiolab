@@ -1,14 +1,19 @@
 const currency = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
 const compact = new Intl.NumberFormat('es-CO', { notation: 'compact', maximumFractionDigits: 1 });
 const number = new Intl.NumberFormat('es-CO');
-const date = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' });
 const dateTime = new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
 const month = new Intl.DateTimeFormat('es-CO', { month: 'short', year: '2-digit' });
 
 export const formatCurrency = (v: number) => currency.format(v || 0);
 export const formatCompactCurrency = (v: number) => `$${compact.format(v || 0)}`;
 export const formatNumber = (v: number) => number.format(v || 0);
-export const formatDate = (v?: string | Date | null) => (v ? date.format(new Date(v)) : '—');
+const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept', 'oct', 'nov', 'dic'];
+/** Fecha compacta para tablas: 7 nov 2026. Fechas YYYY-MM-DD se leen como hora local. */
+export const formatDate = (v?: string | Date | null) => {
+  if (!v) return '—';
+  const d = typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T12:00:00`) : new Date(v);
+  return Number.isNaN(d.getTime()) ? '—' : `${d.getDate()} ${MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+};
 export const formatDateTime = (v?: string | Date | null) => (v ? dateTime.format(new Date(v)) : '—');
 export const formatMonth = (v: string | Date) => month.format(new Date(v));
 export const monthKey = (v: string | Date) => {

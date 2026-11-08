@@ -4,11 +4,12 @@ import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
 import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import PointOfSaleOutlinedIcon from '@mui/icons-material/PointOfSaleOutlined';
+import ApartmentOutlinedIcon from '@mui/icons-material/ApartmentOutlined';
 
 export interface NavChild {
   path: string;
   label: string;
-  badgeKey?: 'lowStock';
+  badgeKey?: 'lowStock' | 'overdue';
 }
 
 export interface NavModule {
@@ -25,8 +26,9 @@ export const NAV: NavModule[] = [
     label: 'Ventas',
     icon: <PointOfSaleOutlinedIcon />,
     children: [
-      { path: 'list', label: 'Lista de ventas' },
+      { path: 'list', label: 'Facturas' },
       { path: 'new', label: 'Nueva venta' },
+      { path: 'receivables', label: 'Por cobrar', badgeKey: 'overdue' },
       { path: 'reports', label: 'Reportes' },
       { path: 'settings', label: 'Configuración' }
     ]
@@ -64,7 +66,8 @@ export const NAV: NavModule[] = [
       { path: 'reports', label: 'Reportes' },
       { path: 'settings', label: 'Configuración' }
     ]
-  }
+  },
+  { path: '/dashboard/company', label: 'Empresa', icon: <ApartmentOutlinedIcon /> }
 ];
 
 /** Módulo y subpágina activos según la ruta, para el sidebar y las migas. */

@@ -8,7 +8,8 @@ import ChargeMeter, { stockLevel } from '../shared/ChargeMeter';
 import StatusChip from '../shared/StatusChip';
 import ProductThumb from './ProductThumb';
 import { productStatusLabel } from './useInventoryData';
-import productsService, { movementReasonLabel, Product, StockMovement } from '../../services/products.service';
+import productsService, { movementReasonLabel, priceBeforeTax, priceWithTax, Product, StockMovement } from '../../services/products.service';
+import { NumberField } from '../shared/Fields';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatCurrency, formatDateTime } from '../../utils/format';
@@ -144,7 +145,7 @@ const ProductDetails: React.FC<{
         </Box>
       </Box>
 
-      <Box sx={{ p: 2, border: '1px solid', borderColor: 'divider', borderRadius: 2.5, mb: 3 }}>
+      <Box sx={{ p: 2.5, bgcolor: 'surface.raised', borderRadius: 4, mb: 3 }}>
         <Typography variant="h6" sx={{ mb: 1.5 }}>
           Ajustar stock
         </Typography>
@@ -154,13 +155,12 @@ const ProductDetails: React.FC<{
           <ToggleButton value="set">Fijar conteo</ToggleButton>
         </ToggleButtonGroup>
         <Stack direction="row" spacing={1}>
-          <TextField
+          <NumberField
             label={mode === 'set' ? 'Unidades contadas' : 'Unidades'}
-            type="number"
-            value={qty}
-            onChange={(e) => setQty(e.target.value)}
-            InputProps={{ inputProps: { min: 0, step: 1 } }}
-            sx={{ maxWidth: 140 }}
+            value={qty === '' ? null : Number(qty)}
+            onValueChange={(v) => setQty(v === null ? '' : String(v))}
+            max={99999}
+            sx={{ maxWidth: 160 }}
             onKeyDown={(e) => e.key === 'Enter' && apply()}
           />
           <TextField label="Motivo (opcional)" value={note} onChange={(e) => setNote(e.target.value)} />
@@ -175,8 +175,11 @@ const ProductDetails: React.FC<{
         </Box>
       </Box>
 
-      <DetailRow label="Precio">{formatCurrency(product.price)}</DetailRow>
-      <DetailRow label="Valor en stock">{formatCurrency(product.price * product.stock)}</DetailRow>
+      <DetailRow label="Precio antes de IVA">{formatCurrency(priceBeforeTax(product))}</DetailRow>
+      <DetailRow label="IVA">{product.taxRate} %</DetailRow>
+      <DetailRow label="Precio con IVA">{formatCurrency(priceWithTax(product))}</DetailRow>
+      <DetailRow label="Unidad">{product.unit}</DetailRow>
+      <DetailRow label="Valor en stock">{formatCurrency(priceBeforeTax(product) * product.stock)}</DetailRow>
       <DetailRow label="Estado">
         <StatusChip label={productStatusLabel[product.status] || product.status} tone={product.status === 'active' ? 'ok' : 'neutral'} />
       </DetailRow>

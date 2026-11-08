@@ -1,9 +1,32 @@
 const mongoose = require('mongoose');
 
 const DEFAULTS = {
+  company: {
+    legalName: '',
+    tradeName: 'Battiolab',
+    nit: '',
+    checkDigit: '',
+    taxRegime: 'responsable',
+    taxNotes: '',
+    address: '',
+    city: '',
+    phone: '',
+    email: '',
+    website: '',
+    resolutionNumber: '',
+    resolutionDate: '',
+    resolutionPrefix: '',
+    resolutionFrom: 0,
+    resolutionTo: 0,
+    resolutionValidUntil: '',
+    invoiceFooter: '',
+    uvt: 52374,
+    minimumWage: 1750905
+  },
   sales: {
-    taxRate: 0,
     invoicePrefix: 'BTL-',
+    creditNotePrefix: 'NC-',
+    defaultCreditDays: 30,
     defaultStatus: 'completed',
     paymentMethods: ['Efectivo', 'Tarjeta', 'Transferencia', 'Financiación'],
     allowNegativeStock: false

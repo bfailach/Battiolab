@@ -15,6 +15,8 @@ import { useProductActions } from './useProductActions';
 import { Product } from '../../services/products.service';
 import { formatCurrency, formatNumber } from '../../utils/format';
 import { downloadCsv } from '../../utils/csv';
+import { matches } from '../../utils/text';
+import { priceBeforeTax, priceWithTax } from '../../services/products.service';
 
 const InventoryData: React.FC = () => {
   const state = useInventoryData();
@@ -22,18 +24,16 @@ const InventoryData: React.FC = () => {
   const [category, setCategory] = useState<string | null>(null);
   const products = state.data?.products ?? NO_PRODUCTS;
   const threshold = state.data?.settings.lowStockThreshold ?? 5;
-  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, reload: state.reload });
+  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, uvt: state.data?.uvt, reload: state.reload });
 
   const rows = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return products.filter(
-      (p) => (!category || p.category === category) && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q))
-    );
+    return products.filter((p) => (!category || p.category === category) && matches(q, p.name, p.sku, p.category));
   }, [products, search, category]);
 
   const totals = useMemo(() => {
     const units = products.reduce((s, p) => s + p.stock, 0);
-    const value = products.reduce((s, p) => s + p.stock * p.price, 0);
+    const value = products.reduce((s, p) => s + p.stock * priceBeforeTax(p), 0);
     const alerts = products.filter((p) => p.status !== 'discontinued' && stockLevel(p.stock, p.minStock, threshold) !== 'ok').length;
     return { units, value, alerts };
   }, [products, threshold]);
@@ -58,14 +58,25 @@ const InventoryData: React.FC = () => {
       )
     },
     { key: 'category', label: 'Categoría', sortValue: (p) => p.category, render: (p) => p.category, hideBelow: 'md' },
-    { key: 'price', label: 'Precio', align: 'right', sortValue: (p) => p.price, render: (p) => formatCurrency(p.price) },
+    {
+      key: 'price',
+      label: 'Precio con IVA',
+      align: 'right',
+      sortValue: (p) => priceWithTax(p),
+      render: (p) => (
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>{formatCurrency(priceWithTax(p))}</Typography>
+          <Typography variant="caption" color="text.secondary">IVA {p.taxRate} %</Typography>
+        </Box>
+      )
+    },
     {
       key: 'stock',
       label: 'Stock',
       sortValue: (p) => p.stock,
       render: (p) => <StockMeter stock={p.stock} minStock={p.minStock} threshold={threshold} width={80} />
     },
-    { key: 'value', label: 'Valor en stock', align: 'right', sortValue: (p) => p.stock * p.price, render: (p) => formatCurrency(p.stock * p.price), hideBelow: 'lg' },
+    { key: 'value', label: 'Valor en stock', align: 'right', sortValue: (p) => p.stock * priceBeforeTax(p), render: (p) => formatCurrency(p.stock * priceBeforeTax(p)), hideBelow: 'lg' },
     {
       key: 'status',
       label: 'Estado',
@@ -77,8 +88,8 @@ const InventoryData: React.FC = () => {
   const exportCsv = () =>
     downloadCsv(
       'inventario-battiolab.csv',
-      ['SKU', 'Producto', 'Categoría', 'Precio', 'Stock', 'Stock mínimo', 'Valor en stock', 'Estado'],
-      rows.map((p) => [p.sku, p.name, p.category, p.price, p.stock, p.minStock, p.price * p.stock, productStatusLabel[p.status] || p.status])
+      ['SKU', 'Producto', 'Categoría', 'Precio antes de IVA', 'IVA %', 'Precio con IVA', 'Stock', 'Stock mínimo', 'Valor en stock', 'Estado'],
+      rows.map((p) => [p.sku, p.name, p.category, priceBeforeTax(p), p.taxRate, priceWithTax(p), p.stock, p.minStock, priceBeforeTax(p) * p.stock, productStatusLabel[p.status] || p.status])
     );
 
   return (
@@ -107,13 +118,13 @@ const InventoryData: React.FC = () => {
               stats={[
                 { label: 'Productos', value: formatNumber(products.length) },
                 { label: 'Unidades en bodega', value: formatNumber(totals.units) },
-                { label: 'Valor del inventario', value: formatCurrency(totals.value), hint: 'A precio de venta' },
+                { label: 'Valor del inventario', value: formatCurrency(totals.value), hint: 'A precio de venta antes de IVA' },
                 { label: 'En alerta', value: totals.alerts, hint: totals.alerts ? 'Agotados o bajo el mínimo' : 'Todo en orden' }
               ]}
             />
             <Surface padding={0}>
-              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ p: 2, alignItems: { md: 'center' } }}>
-                <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre o SKU" />
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ p: 2.5, alignItems: { md: 'center' } }}>
+                <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre, SKU o categoría" />
                 <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
                   <Chip label="Todas" onClick={() => setCategory(null)} color={!category ? 'primary' : 'default'} variant={!category ? 'filled' : 'outlined'} />
                   {data.categories.map((c) => (

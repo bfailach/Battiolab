@@ -14,11 +14,13 @@ export const useProductActions = ({
   products,
   categories,
   threshold,
+  uvt,
   reload
 }: {
   products: Product[];
   categories: string[];
   threshold: number;
+  uvt?: number;
   reload: () => void;
 }) => {
   const { notify, confirm } = useUI();
@@ -58,7 +60,7 @@ export const useProductActions = ({
   const remove = async (p: Product) => {
     const ok = await confirm({
       title: `¿Eliminar ${p.name}?`,
-      message: 'También se borran sus lotes y movimientos. Las ventas pasadas lo conservan por nombre. Si ya no lo vendes, puedes marcarlo como descontinuado.',
+      message: 'Solo se puede eliminar un producto creado por error, sin ventas ni lotes. Si ya no lo vendes, márcalo como descontinuado desde Editar.',
       confirmLabel: 'Eliminar producto',
       destructive: true
     });
@@ -83,7 +85,7 @@ export const useProductActions = ({
 
   const dialogs = (
     <>
-      <ProductForm open={formOpen} product={editing} categories={categories} onClose={() => setFormOpen(false)} onSubmit={save} />
+      <ProductForm open={formOpen} product={editing} categories={categories} uvt={uvt} onClose={() => setFormOpen(false)} onSubmit={save} />
       <ProductDetails
         product={selected}
         threshold={threshold}

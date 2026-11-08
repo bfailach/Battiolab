@@ -9,6 +9,9 @@ export interface Product {
   category: string;
   description?: string;
   price: number;
+  priceIncludesTax: boolean;
+  taxRate: number;
+  unit: string;
   stock: number;
   minStock: number;
   imageUrl?: string;
@@ -23,7 +26,10 @@ export interface CreateProductData {
   category: string;
   description?: string;
   price: number;
-  stock: number;
+  priceIncludesTax: boolean;
+  taxRate: number;
+  unit?: string;
+  stock?: number;
   minStock: number;
   imageUrl?: string;
   status?: ProductStatus;
@@ -52,24 +58,48 @@ export const movementReasonLabel: Record<StockMovement['reason'], string> = {
   return: 'Devolución'
 };
 
+const norm = (p: Product): Product => withId({ ...p, taxRate: p.taxRate ?? 19, unit: p.unit || 'UND', priceIncludesTax: !!p.priceIncludesTax });
+
+type Priced = { price: number; taxRate?: number; priceIncludesTax?: boolean };
+
+/** Precio final al público (con IVA). */
+export const priceWithTax = (p: Priced) => (p.priceIncludesTax ? p.price : Math.round(p.price * (1 + (p.taxRate ?? 19) / 100)));
+/** Valor unitario antes de IVA. */
+export const priceBeforeTax = (p: Priced) => (p.priceIncludesTax ? Math.round(p.price / (1 + (p.taxRate ?? 19) / 100)) : p.price);
+
+/** Desglose de una línea de venta, igual que lo calcula el servidor. */
+export const lineAmounts = (p: Priced, unitPrice: number, quantity: number) => {
+  const rate = p.taxRate ?? 19;
+  if (p.priceIncludesTax) {
+    const total = unitPrice * quantity;
+    const subtotal = Math.round(total / (1 + rate / 100));
+    return { subtotal, tax: total - subtotal, total };
+  }
+  const subtotal = unitPrice * quantity;
+  const tax = Math.round((subtotal * rate) / 100);
+  return { subtotal, tax, total: subtotal + tax };
+};
+
 const productsService = {
   getAll: async (category?: string): Promise<Product[]> =>
-    (await http.get('/products', { params: category ? { category } : {} })).data.map(withId),
-  getById: async (id: string): Promise<Product> => withId((await http.get(`/products/${id}`)).data),
+    (await http.get('/products', { params: category ? { category } : {} })).data.map(norm),
+  getById: async (id: string): Promise<Product> => norm((await http.get(`/products/${id}`)).data),
   getBySku: async (sku: string): Promise<Product> =>
-    withId((await http.get(`/products/sku/${encodeURIComponent(sku)}`)).data),
-  create: async (data: CreateProductData): Promise<Product> => withId((await http.post('/products', data)).data),
+    norm((await http.get(`/products/sku/${encodeURIComponent(sku)}`)).data),
+  create: async (data: CreateProductData): Promise<Product> => norm((await http.post('/products', data)).data),
   update: async (id: string, data: Partial<CreateProductData>): Promise<Product> =>
-    withId((await http.put(`/products/${id}`, data)).data),
+    norm((await http.put(`/products/${id}`, data)).data),
   delete: async (id: string): Promise<void> => {
     await http.delete(`/products/${id}`);
   },
   /** Fija el stock a un valor exacto (conteo físico). */
   updateStock: async (id: string, stock: number, note?: string): Promise<Product> =>
-    withId((await http.patch(`/products/${id}/stock`, { stock, note })).data),
+    norm((await http.patch(`/products/${id}/stock`, { stock, note })).data),
   /** Suma (delta > 0) o resta (delta < 0) unidades. */
   moveStock: async (id: string, delta: number, note?: string, reason?: 'scan' | 'return'): Promise<Product> =>
-    withId((await http.post(`/products/${id}/stock/move`, { delta, note, reason })).data),
+    norm((await http.post(`/products/${id}/stock/move`, { delta, note, reason })).data),
+  /** Sube una imagen (data URL ya reducida) y devuelve la ruta para guardar en imageUrl. */
+  uploadImage: async (dataUrl: string): Promise<string> => (await http.post('/uploads', { dataUrl })).data.url,
   getMovements: async (id: string): Promise<StockMovement[]> =>
     (await http.get(`/products/${id}/movements`)).data.map(withId),
   getAllMovements: async (limit = 50): Promise<StockMovement[]> =>

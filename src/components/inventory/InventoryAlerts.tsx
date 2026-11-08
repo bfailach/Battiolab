@@ -62,7 +62,7 @@ const InventoryAlerts: React.FC = () => {
   const state = useInventoryData();
   const products = state.data?.products ?? NO_PRODUCTS;
   const threshold = state.data?.settings.lowStockThreshold ?? 5;
-  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, reload: state.reload });
+  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, uvt: state.data?.uvt, reload: state.reload });
   const [draftThreshold, setDraftThreshold] = useState('');
 
   useEffect(() => setDraftThreshold(String(threshold)), [threshold]);

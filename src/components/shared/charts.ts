@@ -1,26 +1,25 @@
 import { useTheme } from '@mui/material/styles';
 import { brand } from '../../theme';
 
-const light = [brand.violet, brand.magenta, brand.charge, '#4F8FBF', brand.ok, brand.violetSoft];
-const dark = ['#A69BDB', brand.magenta, brand.charge, '#6FAEDB', '#4CC290', '#B78AD0'];
-
 /** Colores y estilos de ejes coherentes con el tema activo para Recharts. */
 export const useChartStyle = () => {
   const theme = useTheme();
-  const isDark = theme.palette.mode === 'dark';
+  const dark = theme.palette.mode === 'dark';
   return {
-    colors: isDark ? dark : light,
+    colors: dark ? [brand.charge, '#FFFFFF', brand.magenta, '#6F6F76', brand.ok, '#7FB7FF'] : [brand.charge, '#0A0A0A', brand.magenta, '#9A9AA0', '#1F9D62', '#2F6FD0'],
     grid: theme.palette.divider,
     axis: { fontSize: 12, fill: theme.palette.text.secondary },
     tooltip: {
       contentStyle: {
-        background: theme.palette.background.paper,
+        background: theme.palette.surface.raised,
         border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 8,
+        borderRadius: 12,
         fontSize: 13,
         color: theme.palette.text.primary
       },
-      cursor: { fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(61,54,92,0.05)' }
+      itemStyle: { color: theme.palette.text.primary },
+      labelStyle: { color: theme.palette.text.secondary },
+      cursor: { fill: dark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }
     }
   };
 };

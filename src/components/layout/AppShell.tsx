@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Avatar,
-  Badge,
   Box,
   Breadcrumbs,
   Button,
@@ -24,36 +23,41 @@ import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
 import Logo from '../shared/Logo';
-import { NAV, findActive } from './nav';
+import { NAV, NavChild, findActive } from './nav';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { brand } from '../../theme';
 import { initials } from '../../utils/format';
 import productsService from '../../services/products.service';
+import salesService, { isOverdue } from '../../services/sales.service';
 import settingsService from '../../services/settings.service';
 import { stockLevel } from '../shared/ChargeMeter';
 
-const SIDEBAR_WIDTH = 248;
+const SIDEBAR_WIDTH = 256;
 
-/** Cuenta los productos en alerta para mostrarlo junto a "Alertas". */
-const useLowStockCount = (pathname: string) => {
-  const [count, setCount] = useState(0);
+/** Contadores para las insignias del menú: productos en alerta y facturas vencidas. */
+const useBadges = (pathname: string) => {
+  const [badges, setBadges] = useState<Record<NonNullable<NavChild['badgeKey']>, number>>({ lowStock: 0, overdue: 0 });
   useEffect(() => {
     let alive = true;
-    Promise.all([productsService.getAll(), settingsService.get('inventory').catch(() => ({ lowStockThreshold: 5 }))])
-      .then(([products, inv]) => {
+    Promise.all([
+      productsService.getAll(),
+      settingsService.get('inventory').catch(() => ({ lowStockThreshold: 5 })),
+      salesService.getAll({ status: 'pending' }).catch(() => [])
+    ])
+      .then(([products, inv, pending]) => {
         if (!alive) return;
-        setCount(
-          products.filter((p) => p.status !== 'discontinued' && stockLevel(p.stock, p.minStock, inv.lowStockThreshold) !== 'ok')
-            .length
-        );
+        setBadges({
+          lowStock: products.filter((p) => p.status !== 'discontinued' && stockLevel(p.stock, p.minStock, inv.lowStockThreshold) !== 'ok').length,
+          overdue: pending.filter(isOverdue).length
+        });
       })
       .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, [pathname]);
-  return count;
+  return badges;
 };
 
 const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
@@ -61,7 +65,7 @@ const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { module: activeModule, child: activeChild } = findActive(pathname);
-  const lowStock = useLowStockCount(pathname);
+  const badges = useBadges(pathname);
   const sb = theme.palette.sidebar;
 
   const go = (to: string) => {
@@ -75,15 +79,11 @@ const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
       aria-label="Navegación principal"
       sx={{ width: SIDEBAR_WIDTH, height: '100%', bgcolor: sb.bg, color: sb.text, display: 'flex', flexDirection: 'column' }}
     >
-      <ButtonBase
-        onClick={() => go('/dashboard')}
-        sx={{ px: 2.5, py: 2.5, justifyContent: 'flex-start', borderRadius: 0 }}
-        aria-label="Ir al inicio"
-      >
+      <ButtonBase onClick={() => go('/dashboard')} sx={{ px: 3, py: 3, justifyContent: 'flex-start' }} aria-label="Ir al inicio">
         <Logo size={26} />
       </ButtonBase>
 
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.5, pb: 2 }}>
+      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.75, pb: 2 }}>
         {NAV.map((m) => {
           const isActive = activeModule?.path === m.path;
           const target = m.children ? `${m.path}/${m.children[0].path}` : m.path;
@@ -96,23 +96,25 @@ const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
                   width: '100%',
                   justifyContent: 'flex-start',
                   gap: 1.5,
-                  px: 1.25,
-                  py: 1,
-                  borderRadius: 2,
-                  color: isActive ? sb.text : sb.muted,
-                  bgcolor: isActive ? alpha('#FFFFFF', 0.08) : 'transparent',
-                  '&:hover': { bgcolor: sb.hover, color: sb.text },
-                  '& svg': { fontSize: 20, color: isActive ? brand.charge : 'inherit' }
+                  px: 1.75,
+                  py: 1.1,
+                  borderRadius: 999,
+                  color: isActive ? sb.activeText : sb.muted,
+                  bgcolor: isActive ? sb.active : 'transparent',
+                  transition: 'background-color 120ms, color 120ms',
+                  '&:hover': { bgcolor: isActive ? sb.active : sb.hover, color: isActive ? sb.activeText : sb.text },
+                  '& svg': { fontSize: 20 }
                 }}
               >
                 {m.icon}
-                <Typography sx={{ fontWeight: 600, fontSize: '0.9375rem' }}>{m.label}</Typography>
+                <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem' }}>{m.label}</Typography>
               </ButtonBase>
 
               {m.children && isActive && (
-                <Box sx={{ ml: 2.75, mt: 0.5, mb: 1, borderLeft: `1px solid ${alpha('#FFFFFF', 0.12)}` }}>
+                <Box sx={{ mt: 0.75, mb: 1.5, pl: 1 }}>
                   {m.children.map((c) => {
                     const childActive = activeChild?.path === c.path;
+                    const count = c.badgeKey ? badges[c.badgeKey] : 0;
                     return (
                       <ButtonBase
                         key={c.path}
@@ -120,36 +122,32 @@ const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
                         aria-current={childActive ? 'page' : undefined}
                         sx={{
                           width: '100%',
-                          justifyContent: 'space-between',
-                          pl: 1.75,
-                          pr: 1,
-                          py: 0.75,
-                          ml: '-1px',
-                          borderLeft: `2px solid ${childActive ? brand.charge : 'transparent'}`,
+                          justifyContent: 'flex-start',
+                          gap: 1.5,
+                          pl: 2.25,
+                          pr: 1.25,
+                          py: 0.85,
+                          borderRadius: 999,
                           color: childActive ? sb.text : sb.muted,
                           fontSize: '0.875rem',
-                          fontWeight: childActive ? 600 : 500,
-                          '&:hover': { color: sb.text }
+                          fontWeight: childActive ? 700 : 500,
+                          '&:hover': { color: sb.text, bgcolor: sb.hover }
                         }}
                       >
-                        {c.label}
-                        {c.badgeKey === 'lowStock' && lowStock > 0 && (
+                        <Box
+                          component="span"
+                          sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: childActive ? brand.charge : 'transparent' }}
+                        />
+                        <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
+                          {c.label}
+                        </Box>
+                        {count > 0 && (
                           <Box
                             component="span"
-                            aria-label={`${lowStock} productos en alerta`}
-                            sx={{
-                              minWidth: 22,
-                              px: 0.75,
-                              borderRadius: 999,
-                              bgcolor: brand.charge,
-                              color: brand.night,
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              lineHeight: '20px',
-                              textAlign: 'center'
-                            }}
+                            aria-label={`${count} pendientes`}
+                            sx={{ minWidth: 22, px: 0.75, borderRadius: 999, bgcolor: brand.charge, color: '#000', fontSize: '0.75rem', fontWeight: 800, lineHeight: '20px', textAlign: 'center' }}
                           >
-                            {lowStock}
+                            {count}
                           </Box>
                         )}
                       </ButtonBase>
@@ -185,13 +183,13 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       {isDesktop ? (
-        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: 'sidebar.bg' }}>
+        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: 'sidebar.bg', borderRight: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
           <Box sx={{ position: 'sticky', top: 0, height: '100vh' }}>
             <Sidebar />
           </Box>
         </Box>
       ) : (
-        <Drawer open={mobileOpen} onClose={() => setMobileOpen(false)} PaperProps={{ sx: { border: 'none' } }}>
+        <Drawer anchor="left" open={mobileOpen} onClose={() => setMobileOpen(false)} PaperProps={{ sx: { border: 'none', borderRadius: 0 } }}>
           <Sidebar onNavigate={() => setMobileOpen(false)} />
         </Drawer>
       )}
@@ -203,13 +201,13 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             position: 'sticky',
             top: 0,
             zIndex: theme.zIndex.appBar,
-            height: 60,
-            px: { xs: 2, md: 4 },
+            height: 68,
+            px: { xs: 2, md: 5 },
             display: 'flex',
             alignItems: 'center',
             gap: 1.5,
-            bgcolor: alpha(theme.palette.background.default, 0.85),
-            backdropFilter: 'blur(8px)',
+            bgcolor: alpha(theme.palette.background.default, 0.82),
+            backdropFilter: 'blur(12px)',
             borderBottom: `1px solid ${theme.palette.divider}`
           }}
         >
@@ -223,7 +221,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               {module?.label || 'Battiolab'}
             </Typography>
             {child && (
-              <Typography color="text.primary" sx={{ fontWeight: 600 }} noWrap>
+              <Typography color="text.primary" sx={{ fontWeight: 700 }} noWrap>
                 {child.label}
               </Typography>
             )}
@@ -232,7 +230,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           {pathname !== '/dashboard/sales/new' && (
             <Button
               variant="contained"
-              color="secondary"
+              color="charge"
               startIcon={<AddIcon />}
               onClick={() => navigate('/dashboard/sales/new')}
               sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
@@ -247,16 +245,9 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Tooltip>
           <Tooltip title="Tu cuenta">
             <IconButton onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
-              <Badge
-                overlap="circular"
-                variant="dot"
-                invisible={user?.user.role !== 'admin'}
-                sx={{ '& .MuiBadge-dot': { bgcolor: brand.charge } }}
-              >
-                <Avatar sx={{ width: 34, height: 34, bgcolor: brand.magenta, fontSize: 14, fontWeight: 700 }}>
-                  {initials(displayName)}
-                </Avatar>
-              </Badge>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: 'text.primary', color: 'background.default', fontSize: 14, fontWeight: 800 }}>
+                {initials(displayName)}
+              </Avatar>
             </IconButton>
           </Tooltip>
           <Menu
@@ -265,10 +256,10 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             onClose={() => setMenuEl(null)}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{ variant: 'outlined', sx: { mt: 1, minWidth: 240 } }}
+            PaperProps={{ sx: { mt: 1, minWidth: 250 } }}
           >
             <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography sx={{ fontWeight: 600 }}>{displayName}</Typography>
+              <Typography sx={{ fontWeight: 700 }}>{displayName}</Typography>
               <Typography variant="body2" color="text.secondary">
                 {email}
               </Typography>
@@ -293,7 +284,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Menu>
         </Box>
 
-        <Box component="main" sx={{ flex: 1, px: { xs: 2, md: 4 }, py: { xs: 3, md: 4 }, maxWidth: 1440, width: '100%' }}>
+        <Box component="main" sx={{ flex: 1, px: { xs: 2, md: 5 }, py: { xs: 3, md: 5 }, maxWidth: 1480, width: '100%' }}>
           {children}
         </Box>
       </Box>

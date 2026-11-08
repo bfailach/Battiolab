@@ -9,16 +9,18 @@ import SearchField from '../shared/SearchField';
 import StatusChip from '../shared/StatusChip';
 import ClientForm from './ClientForm';
 import ClientDetails from './ClientDetails';
+import InvoiceDialog from '../invoice/InvoiceDialog';
 import { computeClientStats, ClientStats } from './clientStats';
 import clientsService, { Client, CreateClientData } from '../../services/clients.service';
-import salesService from '../../services/sales.service';
+import salesService, { Sale } from '../../services/sales.service';
 import { useLoad } from '../../hooks/useLoad';
 import { useUI } from '../../contexts/UIContext';
 import { formatCurrency, formatDate, initials } from '../../utils/format';
+import { docLabel, formatDocument, formatPhone } from '../../utils/validation';
+import { matches } from '../../utils/text';
 import { downloadCsv } from '../../utils/csv';
-import { brand } from '../../theme';
 
-type Filter = 'all' | 'active' | 'inactive';
+type Filter = 'active' | 'inactive' | 'all';
 
 const ClientList: React.FC = () => {
   const { notify, confirm } = useUI();
@@ -27,21 +29,27 @@ const ClientList: React.FC = () => {
     return { clients, sales };
   });
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<Filter>('all');
+  const [filter, setFilter] = useState<Filter>('active');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Client | null>(null);
   const [selected, setSelected] = useState<Client | null>(null);
+  const [invoice, setInvoice] = useState<Sale | null>(null);
 
   const stats = useMemo(() => computeClientStats(state.data?.sales || []), [state.data]);
+  const counts = useMemo(() => {
+    const all = state.data?.clients || [];
+    return { all: all.length, active: all.filter((c) => c.status).length, inactive: all.filter((c) => !c.status).length };
+  }, [state.data]);
 
-  const rows = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return (state.data?.clients || []).filter((c) => {
-      if (filter === 'active' && !c.status) return false;
-      if (filter === 'inactive' && c.status) return false;
-      return !q || [c.name, c.email, c.document, c.phone].some((v) => v?.toLowerCase().includes(q));
-    });
-  }, [state.data, search, filter]);
+  const rows = useMemo(
+    () =>
+      (state.data?.clients || []).filter(
+        (c) =>
+          (filter === 'all' || (filter === 'active' ? c.status : !c.status)) &&
+          matches(search, c.name, c.email, c.document, c.phone, c.city)
+      ),
+    [state.data, search, filter]
+  );
 
   const st = (c: Client): ClientStats | undefined => stats.get(c.id);
 
@@ -51,43 +59,38 @@ const ClientList: React.FC = () => {
       label: 'Cliente',
       sortValue: (c) => c.name,
       render: (c) => (
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-          <Avatar sx={{ width: 34, height: 34, fontSize: 13, fontWeight: 700, bgcolor: c.status ? brand.violet : 'action.disabled' }}>
-            {initials(c.name)}
-          </Avatar>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0, opacity: c.status ? 1 : 0.55 }}>
+          <Avatar sx={{ width: 36, height: 36, fontSize: 13, fontWeight: 800, bgcolor: 'surface.raised', color: 'text.primary' }}>{initials(c.name)}</Avatar>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+            <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
               {c.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" noWrap component="div">
-              {c.email}
+              {c.email || (c.personType === 'juridica' ? 'Empresa' : 'Persona natural')}
             </Typography>
           </Box>
         </Box>
       )
     },
-    { key: 'document', label: 'Documento', sortValue: (c) => c.document, render: (c) => c.document, hideBelow: 'md' },
-    { key: 'phone', label: 'Teléfono', render: (c) => c.phone, hideBelow: 'lg' },
-    { key: 'count', label: 'Compras', align: 'right', sortValue: (c) => st(c)?.count || 0, render: (c) => st(c)?.count || 0 },
     {
-      key: 'spent',
-      label: 'Total comprado',
-      align: 'right',
-      sortValue: (c) => st(c)?.spent || 0,
-      render: (c) => formatCurrency(st(c)?.spent || 0)
-    },
-    {
-      key: 'last',
-      label: 'Última compra',
-      sortValue: (c) => st(c)?.last || '',
-      render: (c) => formatDate(st(c)?.last),
+      key: 'document',
+      label: 'Documento',
+      sortValue: (c) => c.document,
+      render: (c) => (
+        <Typography variant="body2" noWrap>
+          <Typography component="span" variant="caption" color="text.secondary" sx={{ mr: 0.75 }}>
+            {docLabel(c.documentType)}
+          </Typography>
+          {formatDocument(c.documentType, c.document, c.checkDigit)}
+        </Typography>
+      ),
       hideBelow: 'md'
     },
-    {
-      key: 'status',
-      label: 'Estado',
-      render: (c) => <StatusChip label={c.status ? 'Activo' : 'Inactivo'} tone={c.status ? 'ok' : 'neutral'} />
-    }
+    { key: 'phone', label: 'Teléfono', render: (c) => formatPhone(c.phone), hideBelow: 'lg' },
+    { key: 'count', label: 'Compras', align: 'right', sortValue: (c) => st(c)?.count || 0, render: (c) => st(c)?.count || 0 },
+    { key: 'spent', label: 'Total comprado', align: 'right', sortValue: (c) => st(c)?.spent || 0, render: (c) => formatCurrency(st(c)?.spent || 0) },
+    { key: 'last', label: 'Última compra', sortValue: (c) => st(c)?.last || '', render: (c) => formatDate(st(c)?.last), hideBelow: 'md' },
+    { key: 'status', label: 'Estado', render: (c) => <StatusChip label={c.status ? 'Activo' : 'Inactivo'} tone={c.status ? 'ok' : 'neutral'} /> }
   ];
 
   const save = async (data: CreateClientData) => {
@@ -104,18 +107,19 @@ const ClientList: React.FC = () => {
     state.reload();
   };
 
-  const remove = async (c: Client) => {
-    const ok = await confirm({
-      title: `¿Eliminar a ${c.name}?`,
-      message: 'Sus ventas se conservan, pero dejarán de estar vinculadas a un cliente existente.',
-      confirmLabel: 'Eliminar cliente',
-      destructive: true
-    });
-    if (!ok) return;
+  const toggleStatus = async (c: Client) => {
+    if (c.status) {
+      const ok = await confirm({
+        title: `¿Desactivar a ${c.name}?`,
+        message: 'No aparecerá al crear ventas. Su historial y sus facturas se conservan, y puedes activarlo de nuevo cuando quieras.',
+        confirmLabel: 'Desactivar cliente'
+      });
+      if (!ok) return;
+    }
     try {
-      await clientsService.delete(c.id);
-      notify('Cliente eliminado');
-      setSelected(null);
+      const updated = await clientsService.setStatus(c.id, !c.status);
+      setSelected(updated);
+      notify(updated.status ? 'Cliente activado' : 'Cliente desactivado');
       state.reload();
     } catch (e) {
       notify((e as Error).message, 'error');
@@ -125,9 +129,26 @@ const ClientList: React.FC = () => {
   const exportCsv = () =>
     downloadCsv(
       'clientes-battiolab.csv',
-      ['Nombre', 'Documento', 'Correo', 'Teléfono', 'Estado', 'Compras', 'Total comprado', 'Última compra'],
-      rows.map((c) => [c.name, c.document, c.email, c.phone, c.status ? 'Activo' : 'Inactivo', st(c)?.count || 0, st(c)?.spent || 0, st(c)?.last?.slice(0, 10) || ''])
+      ['Nombre', 'Tipo documento', 'Documento', 'Correo', 'Teléfono', 'Dirección', 'Ciudad', 'Estado', 'Compras', 'Total comprado', 'Última compra'],
+      rows.map((c) => [
+        c.name,
+        docLabel(c.documentType),
+        formatDocument(c.documentType, c.document, c.checkDigit),
+        c.email,
+        c.phone,
+        c.address,
+        c.city,
+        c.status ? 'Activo' : 'Inactivo',
+        st(c)?.count || 0,
+        st(c)?.spent || 0,
+        st(c)?.last?.slice(0, 10) || ''
+      ])
     );
+
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
 
   return (
     <>
@@ -137,16 +158,9 @@ const ClientList: React.FC = () => {
         actions={
           <>
             <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} onClick={exportCsv} disabled={!rows.length}>
-              Exportar CSV
+              Exportar
             </Button>
-            <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => {
-                setEditing(null);
-                setFormOpen(true);
-              }}
-            >
+            <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
               Nuevo cliente
             </Button>
           </>
@@ -155,12 +169,12 @@ const ClientList: React.FC = () => {
       <LoadGate state={state}>
         {(data) => (
           <Surface padding={0}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 2, alignItems: { sm: 'center' } }}>
-              <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre, correo o documento" />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 2.5, alignItems: { sm: 'center' } }}>
+              <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre, documento, correo o ciudad" maxWidth={420} />
               <ToggleButtonGroup size="small" exclusive value={filter} onChange={(_, v) => v && setFilter(v)} aria-label="Filtrar por estado">
-                <ToggleButton value="all">Todos ({data.clients.length})</ToggleButton>
-                <ToggleButton value="active">Activos</ToggleButton>
-                <ToggleButton value="inactive">Inactivos</ToggleButton>
+                <ToggleButton value="active">Activos {counts.active}</ToggleButton>
+                <ToggleButton value="inactive">Inactivos {counts.inactive}</ToggleButton>
+                <ToggleButton value="all">Todos {counts.all}</ToggleButton>
               </ToggleButtonGroup>
             </Stack>
             <DataTable
@@ -174,15 +188,15 @@ const ClientList: React.FC = () => {
                   <EmptyState
                     icon={<PeopleAltOutlinedIcon />}
                     title="Todavía no hay clientes"
-                    text="Registra tu primer cliente para asociarle ventas y ver su historial."
+                    text="Registra tu primer cliente para facturarle y ver su historial."
                     action={
-                      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormOpen(true)}>
+                      <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
                         Nuevo cliente
                       </Button>
                     }
                   />
                 ) : (
-                  <EmptyState title="Ningún cliente coincide" text="Prueba con otro término o quita el filtro de estado." />
+                  <EmptyState title="Ningún cliente coincide" text="Prueba con otro término o cambia el filtro de estado." />
                 )
               }
             />
@@ -207,8 +221,10 @@ const ClientList: React.FC = () => {
           setEditing(c);
           setFormOpen(true);
         }}
-        onDelete={remove}
+        onToggleStatus={toggleStatus}
+        onOpenInvoice={setInvoice}
       />
+      <InvoiceDialog sale={invoice} onClose={() => setInvoice(null)} />
     </>
   );
 };

@@ -10,6 +10,7 @@ import ClientsPage from './components/clients/ClientsPage';
 import EmployeesPage from './components/employees/EmployeesPage';
 import InventoryPage from './components/inventory/InventoryPage';
 import SalesPage from './components/sales/SalesPage';
+import CompanySettings from './components/company/CompanySettings';
 import { Loading } from './components/shared/Page';
 
 const PrivateArea: React.FC = () => {
@@ -24,6 +25,7 @@ const PrivateArea: React.FC = () => {
         <Route path="employees/*" element={<EmployeesPage />} />
         <Route path="inventory/*" element={<InventoryPage />} />
         <Route path="sales/*" element={<SalesPage />} />
+        <Route path="company" element={<CompanySettings />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </AppShell>

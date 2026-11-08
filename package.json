@@ -1,6 +1,6 @@
 {
   "name": "battiolab-erp",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "ERP de escritorio para Battiolab",
   "main": "main.js",
   "scripts": {
@@ -23,8 +23,8 @@
   "dependencies": {
     "@emotion/react": "^11.11.0",
     "@emotion/styled": "^11.11.0",
+    "@fontsource-variable/archivo": "^5.3.0",
     "@fontsource-variable/figtree": "^5.3.0",
-    "@fontsource/niramit": "^5.3.0",
     "@mui/icons-material": "^5.14.19",
     "@mui/material": "^5.13.0",
     "axios": "^1.4.0",

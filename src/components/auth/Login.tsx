@@ -68,7 +68,7 @@ const Login: React.FC = () => {
               )
             }}
           />
-          <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ minHeight: 46 }}>
+          <Button type="submit" variant="contained" color="charge" size="large" disabled={submitting}>
             {submitting ? 'Entrando…' : 'Entrar'}
           </Button>
         </Stack>

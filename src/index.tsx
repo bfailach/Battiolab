@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import '@fontsource/niramit/600.css';
-import '@fontsource/niramit/700.css';
+import '@fontsource-variable/archivo/wdth.css';
 import '@fontsource-variable/figtree';
 import './index.css';
 import App from './App';

@@ -13,7 +13,7 @@ const validate = (key, value) => {
       if (!Array.isArray(v)) throw httpError(400, `${k} debe ser una lista`);
       out[k] = [...new Set(v.map((x) => String(x).trim()).filter(Boolean))];
     } else if (typeof def === 'number') {
-      const n = Number(v);
+      const n = v === '' ? 0 : Number(v);
       if (!Number.isFinite(n) || n < 0) throw httpError(400, `${k} debe ser un número positivo`);
       out[k] = n;
     } else if (typeof def === 'boolean') {
@@ -22,7 +22,27 @@ const validate = (key, value) => {
       out[k] = String(v);
     }
   }
-  if (key === 'sales' && out.taxRate !== undefined && out.taxRate > 100) throw httpError(400, 'El impuesto no puede superar 100%');
+  if (key === 'company') {
+    const v = require('../utils/validators');
+    if (out.nit !== undefined) {
+      out.nit = out.nit.replace(/\D/g, '');
+      if (out.nit && !/^\d{9}$/.test(out.nit)) throw httpError(400, 'El NIT debe tener 9 dígitos, sin el dígito de verificación');
+      out.checkDigit = out.nit ? String(v.nitCheckDigit(out.nit)) : '';
+    }
+    if (out.phone) {
+      out.phone = v.cleanPhone(out.phone);
+      const e = v.validatePhone(out.phone);
+      if (e) throw httpError(400, e);
+    }
+    if (out.email && v.validateEmail(out.email)) throw httpError(400, 'El correo de la empresa no es válido');
+    if (out.resolutionPrefix !== undefined && !/^[A-Z0-9]{0,4}$/.test(out.resolutionPrefix.toUpperCase())) {
+      throw httpError(400, 'El prefijo de la resolución admite hasta 4 letras o números');
+    }
+    if (out.resolutionPrefix) out.resolutionPrefix = out.resolutionPrefix.toUpperCase();
+    const from = out.resolutionFrom ?? 0;
+    const to = out.resolutionTo ?? 0;
+    if (to && from > to) throw httpError(400, 'El rango de numeración es inválido: "desde" es mayor que "hasta"');
+  }
   return out;
 };
 

@@ -1,56 +1,78 @@
 import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, ButtonBase, Typography } from '@mui/material';
-import { alpha } from '@mui/material/styles';
+import { Box, Button, ButtonBase, Stack, Typography } from '@mui/material';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import { EmptyState, LoadGate, PageHeader, Surface } from '../shared/Page';
 import DataTable, { Column } from '../shared/DataTable';
+import ChargeMeter from '../shared/ChargeMeter';
 import { computeClientStats, Segment, segmentClients, segmentInfo } from './clientStats';
 import clientsService, { Client } from '../../services/clients.service';
 import salesService from '../../services/sales.service';
 import { useLoad } from '../../hooks/useLoad';
+import { useUI } from '../../contexts/UIContext';
 import { formatCurrency, formatDate } from '../../utils/format';
-import { brand } from '../../theme';
+import { formatPhone } from '../../utils/validation';
+import { downloadCsv } from '../../utils/csv';
+import { wide } from '../../theme';
 
 const ORDER: Segment[] = ['vip', 'frequent', 'new', 'dormant', 'never'];
 
 const ClientGroups: React.FC = () => {
   const navigate = useNavigate();
+  const { notify } = useUI();
   const state = useLoad(async () => {
     const [clients, sales] = await Promise.all([clientsService.getAll(), salesService.getAll()]);
-    return { clients, sales };
+    return { clients: clients.filter((c) => c.status), sales };
   });
   const [segment, setSegment] = useState<Segment>('vip');
 
   const computed = useMemo(() => {
     if (!state.data) return null;
     const stats = computeClientStats(state.data.sales);
-    return { stats, groups: segmentClients(state.data.clients, stats) };
+    const revenue = [...stats.values()].reduce((s, x) => s + x.spent, 0);
+    return { stats, revenue, groups: segmentClients(state.data.clients, stats) };
   }, [state.data]);
 
+  const members = computed?.groups[segment] || [];
+  const segmentRevenue = members.reduce((s, c) => s + (computed?.stats.get(c.id)?.spent || 0), 0);
+  const share = computed?.revenue ? segmentRevenue / computed.revenue : 0;
+  const stat = (c: Client) => computed?.stats.get(c.id);
+
   const columns: Column<Client>[] = [
-    { key: 'name', label: 'Cliente', sortValue: (c) => c.name, render: (c) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{c.name}</Typography> },
-    { key: 'email', label: 'Correo', render: (c) => c.email, hideBelow: 'md' },
-    { key: 'count', label: 'Compras', align: 'right', sortValue: (c) => computed?.stats.get(c.id)?.count || 0, render: (c) => computed?.stats.get(c.id)?.count || 0 },
-    {
-      key: 'spent',
-      label: 'Total comprado',
-      align: 'right',
-      sortValue: (c) => computed?.stats.get(c.id)?.spent || 0,
-      render: (c) => formatCurrency(computed?.stats.get(c.id)?.spent || 0)
-    },
-    { key: 'last', label: 'Última compra', sortValue: (c) => computed?.stats.get(c.id)?.last || '', render: (c) => formatDate(computed?.stats.get(c.id)?.last) }
+    { key: 'name', label: 'Cliente', sortValue: (c) => c.name, render: (c) => <Typography variant="body2" sx={{ fontWeight: 700 }}>{c.name}</Typography> },
+    { key: 'contact', label: 'Contacto', render: (c) => <Typography variant="body2" color="text.secondary">{c.email || formatPhone(c.phone)}</Typography>, hideBelow: 'md' },
+    { key: 'count', label: 'Compras', align: 'right', sortValue: (c) => stat(c)?.count || 0, render: (c) => stat(c)?.count || 0 },
+    { key: 'spent', label: 'Total comprado', align: 'right', sortValue: (c) => stat(c)?.spent || 0, render: (c) => formatCurrency(stat(c)?.spent || 0) },
+    { key: 'last', label: 'Última compra', sortValue: (c) => stat(c)?.last || '', render: (c) => formatDate(stat(c)?.last), hideBelow: 'sm' }
   ];
+
+  const emails = members.map((c) => c.email).filter(Boolean) as string[];
 
   return (
     <>
-      <PageHeader title="Grupos de clientes" description="Segmentos calculados con el historial de compras, para decidir a quién contactar." />
+      <PageHeader title="Grupos de clientes" description="Segmentos calculados con el historial de compras, para decidir a quién llamar o escribir. Solo incluye clientes activos." />
       <LoadGate state={state}>
         {() =>
           computed && (
-            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '280px 1fr' }, gap: 3, alignItems: 'start' }}>
-              <Box role="tablist" aria-label="Segmentos" sx={{ display: 'flex', flexDirection: { xs: 'row', lg: 'column' }, gap: 1, overflowX: 'auto' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px 1fr' }, gap: 3, alignItems: 'start' }}>
+              <Box
+                role="tablist"
+                aria-label="Segmentos"
+                aria-orientation="vertical"
+                sx={{
+                  position: { lg: 'sticky' },
+                  top: { lg: 92 },
+                  display: 'flex',
+                  flexDirection: { xs: 'row', lg: 'column' },
+                  gap: 0.75,
+                  overflowX: { xs: 'auto', lg: 'visible' },
+                  pb: { xs: 1, lg: 0 }
+                }}
+              >
                 {ORDER.map((s) => {
                   const active = s === segment;
+                  const count = computed.groups[s].length;
                   return (
                     <ButtonBase
                       key={s}
@@ -59,33 +81,80 @@ const ClientGroups: React.FC = () => {
                       onClick={() => setSegment(s)}
                       sx={(t) => ({
                         flexShrink: 0,
-                        justifyContent: 'space-between',
+                        minWidth: { xs: 220, lg: 0 },
+                        display: 'grid',
+                        gridTemplateColumns: '56px 1fr',
+                        alignItems: 'center',
+                        gap: 1.5,
                         textAlign: 'left',
-                        gap: 2,
-                        p: 1.75,
-                        borderRadius: 2.5,
-                        border: '1px solid',
-                        borderColor: active ? brand.magenta : 'divider',
-                        bgcolor: active ? alpha(brand.magenta, t.palette.mode === 'dark' ? 0.16 : 0.06) : 'background.paper',
-                        minWidth: { xs: 200, lg: 0 }
+                        px: 2,
+                        py: 1.5,
+                        borderRadius: 4,
+                        bgcolor: active ? t.palette.text.primary : 'transparent',
+                        color: active ? t.palette.background.default : t.palette.text.primary,
+                        transition: 'background-color 120ms',
+                        '&:hover': { bgcolor: active ? t.palette.text.primary : t.palette.action.hover }
                       })}
                     >
-                      <Box>
-                        <Typography variant="subtitle1">{segmentInfo[s].label}</Typography>
-                        <Typography variant="caption" color="text.secondary" component="div">
+                      <Typography component="span" sx={{ ...wide, fontSize: '1.75rem', lineHeight: 1, opacity: count ? 1 : 0.4 }}>
+                        {count}
+                      </Typography>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontWeight: 800, fontSize: '0.9375rem' }}>{segmentInfo[s].label}</Typography>
+                        <Typography variant="caption" component="div" sx={{ opacity: 0.7, lineHeight: 1.35 }}>
                           {segmentInfo[s].description}
                         </Typography>
                       </Box>
-                      <Typography variant="h4" component="span">
-                        {computed.groups[s].length}
-                      </Typography>
                     </ButtonBase>
                   );
                 })}
               </Box>
-              <Surface title={segmentInfo[segment].label} subtitle={segmentInfo[segment].description} padding={0}>
+
+              <Surface
+                title={segmentInfo[segment].label}
+                subtitle={`${members.length} clientes, ${formatCurrency(segmentRevenue)} en compras`}
+                padding={0}
+                action={
+                  <Stack direction="row" spacing={1}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<ContentCopyOutlinedIcon />}
+                      disabled={!emails.length}
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(emails.join(', '));
+                          notify(`${emails.length} correos copiados`);
+                        } catch {
+                          notify('No se pudo copiar al portapapeles', 'error');
+                        }
+                      }}
+                    >
+                      Copiar correos
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<FileDownloadOutlinedIcon />}
+                      disabled={!members.length}
+                      onClick={() =>
+                        downloadCsv(
+                          `grupo-${segment}.csv`,
+                          ['Cliente', 'Correo', 'Teléfono', 'Compras', 'Total comprado', 'Última compra'],
+                          members.map((c) => [c.name, c.email, c.phone, stat(c)?.count || 0, stat(c)?.spent || 0, stat(c)?.last?.slice(0, 10) || ''])
+                        )
+                      }
+                    >
+                      Exportar
+                    </Button>
+                  </Stack>
+                }
+              >
+                <Box sx={{ px: 3, pb: 2 }}>
+                  <ChargeMeter value={share} level="ok" width={240} segments={20} height={12} label={`${Math.round(share * 100)} % de los ingresos`} />
+                </Box>
                 <DataTable
-                  rows={computed.groups[segment]}
+                  rows={members}
                   columns={columns}
                   rowKey={(c) => c.id}
                   onRowClick={(c) => navigate(`/dashboard/clients/history?client=${c.id}`)}

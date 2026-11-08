@@ -12,7 +12,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '5mb' }));
 
 // Errores de JSON mal formado
 app.use((err, req, res, next) => {
@@ -29,6 +29,10 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
+// Imágenes de productos (públicas: se cargan con <img>, sin cabecera de autenticación)
+const uploads = require('./routes/uploads.routes');
+app.use('/uploads', express.static(uploads.UPLOAD_DIR, { maxAge: '30d', immutable: true }));
+
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/clients', requireAuth, require('./routes/clients.routes'));
@@ -38,6 +42,7 @@ app.use('/api/sales', requireAuth, require('./routes/sales.routes'));
 app.use('/api/lots', requireAuth, require('./routes/lots.routes'));
 app.use('/api/settings', requireAuth, require('./routes/settings.routes'));
 app.use('/api/movements', requireAuth, require('./routes/movements.routes'));
+app.use('/api/uploads', requireAuth, uploads.router);
 
 app.use('/api', (req, res) => res.status(404).json({ message: 'Ruta no encontrada' }));
 

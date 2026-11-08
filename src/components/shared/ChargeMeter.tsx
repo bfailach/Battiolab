@@ -52,7 +52,7 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
             width,
             height,
             borderRadius: '4px',
-            border: `1.5px solid ${alpha(theme.palette.text.primary, 0.28)}`
+            border: `1.5px solid ${alpha(theme.palette.text.primary, 0.35)}`
           }}
         >
           {Array.from({ length: segments }).map((_, i) => (
@@ -60,7 +60,7 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
               key={i}
               sx={{
                 borderRadius: '1.5px',
-                bgcolor: i < filled ? color : alpha(theme.palette.text.primary, 0.07)
+                bgcolor: i < filled ? color : alpha(theme.palette.text.primary, 0.08)
               }}
             />
           ))}
@@ -71,7 +71,7 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
             height: height * 0.45,
             ml: '1px',
             borderRadius: '0 2px 2px 0',
-            bgcolor: alpha(theme.palette.text.primary, 0.28)
+            bgcolor: alpha(theme.palette.text.primary, 0.35)
           }}
         />
       </Box>

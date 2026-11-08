@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Box, Button, FormControlLabel, Grid, InputAdornment, MenuItem, Stack, Switch, TextField, Typography } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { Alert, Box, Button, FormControlLabel, Link, Stack, Switch, TextField, Typography } from '@mui/material';
 import { LoadGate, PageHeader, Surface } from '../shared/Page';
+import { FormGrid } from '../shared/FormDialog';
+import { NumberField } from '../shared/Fields';
 import ListEditor from '../shared/ListEditor';
 import settingsService, { InventorySettings, SalesSettings as Sales } from '../../services/settings.service';
-import { saleStatusLabel, SaleStatus } from '../../services/sales.service';
 import { useLoad } from '../../hooks/useLoad';
 import { useUI } from '../../contexts/UIContext';
 import { useAuth } from '../../contexts/AuthContext';
@@ -14,6 +16,7 @@ interface Draft {
 }
 
 const SalesSettings: React.FC = () => {
+  const navigate = useNavigate();
   const { notify } = useUI();
   const { isAdmin } = useAuth();
   const state = useLoad(async (): Promise<Draft> => {
@@ -33,10 +36,8 @@ const SalesSettings: React.FC = () => {
 
   const save = async () => {
     if (!draft) return;
-    if (draft.sales.taxRate < 0 || draft.sales.taxRate > 100) {
-      notify('El impuesto debe estar entre 0 y 100 %', 'error');
-      return;
-    }
+    if (!draft.sales.paymentMethods.length) return notify('Deja al menos un medio de pago', 'error');
+    if (!draft.inventory.categories.length) return notify('Deja al menos una categoría de producto', 'error');
     setSaving(true);
     try {
       const [sales, inventory] = await Promise.all([settingsService.save('sales', draft.sales), settingsService.save('inventory', draft.inventory)]);
@@ -49,13 +50,11 @@ const SalesSettings: React.FC = () => {
     }
   };
 
-  const nextNumberExample = draft ? `${draft.sales.invoicePrefix}00042` : '';
-
   return (
     <>
       <PageHeader
         title="Configuración de ventas"
-        description="Impuestos, numeración, formas de pago y las reglas de inventario que aplican al vender."
+        description="Numeración interna, crédito, medios de pago y reglas de inventario al vender."
         actions={
           isAdmin && (
             <>
@@ -72,82 +71,67 @@ const SalesSettings: React.FC = () => {
       <LoadGate state={state}>
         {() =>
           draft && (
-            <Stack spacing={3} sx={{ maxWidth: 820 }}>
+            <Stack spacing={3} sx={{ maxWidth: 860 }}>
               {!isAdmin && <Alert severity="info">Solo un administrador puede cambiar esta configuración.</Alert>}
-              <Surface title="Facturación" subtitle="Se aplica a las ventas nuevas; las ya registradas no cambian.">
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      label="Impuesto"
-                      type="number"
-                      value={draft.sales.taxRate}
-                      onChange={(e) => setSales({ taxRate: Number(e.target.value) })}
-                      InputProps={{ endAdornment: <InputAdornment position="end">%</InputAdornment>, inputProps: { min: 0, max: 100, step: 0.5 } }}
-                      helperText="0 si los precios ya incluyen IVA"
-                      disabled={!isAdmin}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      label="Prefijo de numeración"
-                      value={draft.sales.invoicePrefix}
-                      onChange={(e) => setSales({ invoicePrefix: e.target.value })}
-                      helperText={`Ejemplo: ${nextNumberExample}`}
-                      disabled={!isAdmin}
-                    />
-                  </Grid>
-                  <Grid item xs={12} sm={4}>
-                    <TextField
-                      select
-                      label="Estado por defecto"
-                      value={draft.sales.defaultStatus}
-                      onChange={(e) => setSales({ defaultStatus: e.target.value as SaleStatus })}
-                      disabled={!isAdmin}
-                    >
-                      {(['completed', 'pending'] as SaleStatus[]).map((s) => (
-                        <MenuItem key={s} value={s}>
-                          {saleStatusLabel[s]}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  </Grid>
-                </Grid>
+              <Alert severity="info">
+                El IVA se configura en cada producto. La resolución de facturación DIAN y los datos del emisor están en{' '}
+                <Link component="button" onClick={() => navigate('/dashboard/company')} sx={{ verticalAlign: 'baseline' }}>
+                  Empresa
+                </Link>
+                .
+              </Alert>
+              <Surface title="Numeración y crédito" subtitle="El prefijo interno solo se usa mientras no haya una resolución DIAN registrada.">
+                <FormGrid columns={3}>
+                  <TextField
+                    label="Prefijo interno"
+                    value={draft.sales.invoicePrefix}
+                    onChange={(e) => setSales({ invoicePrefix: e.target.value.toUpperCase().slice(0, 6) })}
+                    helperText={`Ejemplo: ${draft.sales.invoicePrefix}00042`}
+                    disabled={!isAdmin}
+                  />
+                  <TextField
+                    label="Prefijo de notas crédito"
+                    value={draft.sales.creditNotePrefix}
+                    onChange={(e) => setSales({ creditNotePrefix: e.target.value.toUpperCase().slice(0, 6) })}
+                    helperText={`Ejemplo: ${draft.sales.creditNotePrefix}00003`}
+                    disabled={!isAdmin}
+                  />
+                  <NumberField
+                    label="Plazo de crédito por defecto"
+                    suffix="días"
+                    value={draft.sales.defaultCreditDays}
+                    onValueChange={(v) => setSales({ defaultCreditDays: v || 0 })}
+                    max={365}
+                    helperText=" "
+                    disabled={!isAdmin}
+                  />
+                </FormGrid>
               </Surface>
-              <Surface title="Métodos de pago" subtitle="El primero de la lista aparece seleccionado en cada venta nueva.">
-                <ListEditor
-                  values={draft.sales.paymentMethods}
-                  onChange={(paymentMethods) => setSales({ paymentMethods })}
-                  placeholder="Nuevo método de pago"
-                  disabled={!isAdmin}
-                />
+              <Surface title="Medios de pago" subtitle="El primero de la lista aparece seleccionado en cada venta de contado.">
+                <ListEditor values={draft.sales.paymentMethods} onChange={(paymentMethods) => setSales({ paymentMethods })} placeholder="Nuevo medio de pago" disabled={!isAdmin} />
               </Surface>
               <Surface title="Inventario al vender">
                 <FormControlLabel
                   control={<Switch checked={draft.sales.allowNegativeStock} onChange={(e) => setSales({ allowNegativeStock: e.target.checked })} disabled={!isAdmin} />}
                   label="Permitir vender sin stock disponible"
                 />
-                <Typography variant="body2" color="text.secondary" sx={{ ml: 6, mt: -0.5, mb: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 6, mt: -0.5, mb: 3 }}>
                   Útil para preventas o encargos. El stock quedará en negativo hasta que llegue el lote.
                 </Typography>
-                <Box sx={{ maxWidth: 260 }}>
-                  <TextField
+                <Box sx={{ maxWidth: 280 }}>
+                  <NumberField
                     label="Umbral general de alerta"
-                    type="number"
+                    suffix="u."
                     value={draft.inventory.lowStockThreshold}
-                    onChange={(e) => setInv({ lowStockThreshold: Math.max(0, Math.floor(Number(e.target.value))) })}
-                    InputProps={{ endAdornment: <InputAdornment position="end">u.</InputAdornment>, inputProps: { min: 0 } }}
+                    onValueChange={(v) => setInv({ lowStockThreshold: v || 0 })}
+                    max={9999}
                     helperText="Para productos sin stock mínimo propio"
                     disabled={!isAdmin}
                   />
                 </Box>
               </Surface>
               <Surface title="Categorías de producto">
-                <ListEditor
-                  values={draft.inventory.categories}
-                  onChange={(categories) => setInv({ categories })}
-                  placeholder="Nueva categoría"
-                  disabled={!isAdmin}
-                />
+                <ListEditor values={draft.inventory.categories} onChange={(categories) => setInv({ categories })} placeholder="Nueva categoría" disabled={!isAdmin} />
               </Surface>
             </Stack>
           )

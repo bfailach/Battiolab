@@ -12,10 +12,10 @@ const DetailDrawer: React.FC<{
   children: React.ReactNode;
   width?: number;
 }> = ({ open, onClose, title, subtitle, actions, children, width = 460 }) => (
-  <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: '100%', sm: width } } }}>
+  <Drawer anchor="right" open={open} onClose={onClose} PaperProps={{ sx: { width: { xs: '100%', sm: width }, borderTopLeftRadius: { sm: 24 }, borderBottomLeftRadius: { sm: 24 } } }}>
     <Box sx={{ p: 3, display: 'flex', alignItems: 'flex-start', gap: 2 }}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
-        <Typography variant="h3" component="h2">
+        <Typography variant="h3" component="h2" sx={{ wordBreak: 'break-word' }}>
           {title}
         </Typography>
         {subtitle && (
@@ -35,7 +35,7 @@ const DetailDrawer: React.FC<{
 );
 
 export const DetailRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
-  <Box sx={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 2, py: 1.25, borderBottom: '1px solid', borderColor: 'divider' }}>
+  <Box sx={{ display: 'grid', gridTemplateColumns: '150px 1fr', gap: 2, py: 1.4, borderBottom: '1px solid', borderColor: 'divider' }}>
     <Typography variant="body2" color="text.secondary">
       {label}
     </Typography>

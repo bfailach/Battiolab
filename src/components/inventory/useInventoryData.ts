@@ -7,12 +7,13 @@ const fallback: InventorySettings = { lowStockThreshold: 5, categories: DEFAULT_
 
 export const useInventoryData = () =>
   useLoad(async () => {
-    const [products, settings] = await Promise.all([
+    const [products, settings, company] = await Promise.all([
       productsService.getAll(),
-      settingsService.get('inventory').catch(() => fallback)
+      settingsService.get('inventory').catch(() => fallback),
+      settingsService.get('company').catch(() => null)
     ]);
     const categories = [...new Set([...settings.categories, ...products.map((p) => p.category)])].filter(Boolean);
-    return { products, settings, categories };
+    return { products, settings, categories, uvt: company?.uvt || 52374 };
   });
 
 export const productStatusLabel = { active: 'Activo', inactive: 'Inactivo', discontinued: 'Descontinuado' } as const;

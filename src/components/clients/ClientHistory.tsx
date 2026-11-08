@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Autocomplete, Box, Button, Stack, TextField, Typography } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import InvoiceDialog from '../invoice/InvoiceDialog';
 import { EmptyState, LoadGate, PageHeader, StatStrip, Surface } from '../shared/Page';
 import StatusChip, { saleTone } from '../shared/StatusChip';
 import clientsService, { Client } from '../../services/clients.service';
@@ -11,9 +13,11 @@ import { useLoad } from '../../hooks/useLoad';
 import { formatCurrency, formatDate } from '../../utils/format';
 import { computeClientStats } from './clientStats';
 import { brand } from '../../theme';
+import { docLabel, formatDocument } from '../../utils/validation';
+import { matches } from '../../utils/text';
 
 /** Línea de tiempo de compras: cada venta con sus productos. */
-const Timeline: React.FC<{ sales: Sale[]; showClient?: boolean }> = ({ sales, showClient }) => (
+const Timeline: React.FC<{ sales: Sale[]; showClient?: boolean; onInvoice: (s: Sale) => void }> = ({ sales, showClient, onInvoice }) => (
   <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0 }}>
     {sales.map((s, i) => (
       <Box component="li" key={s.id} sx={{ display: 'grid', gridTemplateColumns: '20px 1fr', gap: 2 }}>
@@ -24,7 +28,7 @@ const Timeline: React.FC<{ sales: Sale[]; showClient?: boolean }> = ({ sales, sh
               height: 12,
               mt: 0.75,
               borderRadius: '3px',
-              bgcolor: s.status === 'cancelled' ? 'action.disabled' : s.status === 'pending' ? brand.charge : brand.magenta
+              bgcolor: s.status === 'cancelled' ? 'action.disabled' : s.status === 'pending' ? brand.low : brand.charge
             }}
           />
           {i < sales.length - 1 && <Box sx={{ flex: 1, width: '2px', bgcolor: 'divider', my: 0.5 }} />}
@@ -46,25 +50,28 @@ const Timeline: React.FC<{ sales: Sale[]; showClient?: boolean }> = ({ sales, sh
                 </Typography>
               )}
             </Box>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack direction="row" spacing={2} alignItems="center">
               <StatusChip label={saleStatusLabel[s.status]} tone={saleTone[s.status]} />
-              <Typography sx={{ fontWeight: 700, textDecoration: s.status === 'cancelled' ? 'line-through' : 'none' }}>
+              <Typography sx={{ fontWeight: 800, textDecoration: s.status === 'cancelled' ? 'line-through' : 'none' }}>
                 {formatCurrency(s.total)}
               </Typography>
+              <Button size="small" variant="outlined" startIcon={<DescriptionOutlinedIcon />} onClick={() => onInvoice(s)}>
+                Ver factura
+              </Button>
             </Stack>
           </Box>
           <Box component="ul" sx={{ m: 0, mt: 1, pl: 2.25, color: 'text.secondary' }}>
             {s.items.map((it) => (
               <Typography component="li" variant="body2" key={it.productId + it.price}>
-                {it.quantity} × {it.productName} ({formatCurrency(it.price)})
+                {it.quantity} × {it.productName} ({formatCurrency(it.price)} + IVA {it.taxRate} %)
               </Typography>
             ))}
           </Box>
-          {s.paymentMethod && (
-            <Typography variant="caption" color="text.secondary">
-              Pago: {s.paymentMethod}
-            </Typography>
-          )}
+          <Typography variant="caption" color="text.secondary">
+            {s.paymentForm === 'credito' ? `Crédito${s.dueDate ? `, vence ${formatDate(s.dueDate)}` : ''}` : 'Contado'}
+            {s.paymentMethod ? `, ${s.paymentMethod}` : ''}
+            {s.creditNote ? `. Anulada con ${s.creditNote.number}: ${s.creditNote.reason}` : ''}
+          </Typography>
         </Box>
       </Box>
     ))}
@@ -74,6 +81,7 @@ const Timeline: React.FC<{ sales: Sale[]; showClient?: boolean }> = ({ sales, sh
 const ClientHistory: React.FC = () => {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
+  const [invoice, setInvoice] = useState<Sale | null>(null);
   const clientId = params.get('client');
   const state = useLoad(async () => {
     const [clients, sales] = await Promise.all([clientsService.getAll(), salesService.getAll()]);
@@ -105,7 +113,8 @@ const ClientHistory: React.FC = () => {
               options={data.clients}
               value={selected}
               onChange={(_, c) => setParams(c ? { client: c.id } : {})}
-              getOptionLabel={(c) => `${c.name} (${c.document})`}
+              getOptionLabel={(c) => `${c.name} (${docLabel(c.documentType)} ${formatDocument(c.documentType, c.document, c.checkDigit)})`}
+              filterOptions={(opts, { inputValue }) => opts.filter((c) => matches(inputValue, c.name, c.document, c.email))}
               isOptionEqualToValue={(a, b) => a.id === b.id}
               renderInput={(p) => <TextField {...p} label="Cliente" placeholder="Busca por nombre o documento" />}
               sx={{ maxWidth: 480, mb: 3 }}
@@ -125,7 +134,7 @@ const ClientHistory: React.FC = () => {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 320px' }, gap: 3, alignItems: 'start' }}>
                   <Surface title="Compras">
                     {own.length ? (
-                      <Timeline sales={own} />
+                      <Timeline sales={own} onInvoice={setInvoice} />
                     ) : (
                       <EmptyState
                         icon={<ReceiptLongOutlinedIcon />}
@@ -157,7 +166,7 @@ const ClientHistory: React.FC = () => {
             ) : (
               <Surface title="Compras recientes de todos los clientes">
                 {data.sales.length ? (
-                  <Timeline sales={data.sales.slice(0, 10)} showClient />
+                  <Timeline sales={data.sales.slice(0, 10)} showClient onInvoice={setInvoice} />
                 ) : (
                   <EmptyState icon={<ReceiptLongOutlinedIcon />} title="Todavía no hay ventas" text="Registra una venta para empezar el historial." />
                 )}
@@ -166,6 +175,7 @@ const ClientHistory: React.FC = () => {
           </>
         )}
       </LoadGate>
+      <InvoiceDialog sale={invoice} onClose={() => setInvoice(null)} />
     </>
   );
 };

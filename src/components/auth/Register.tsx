@@ -70,7 +70,7 @@ const Register: React.FC = () => {
             required
           />
           <TextField label="Código de sede" size="medium" value={form.siteCode} onChange={set('siteCode')} required />
-          <Button type="submit" variant="contained" size="large" disabled={submitting} sx={{ minHeight: 46 }}>
+          <Button type="submit" variant="contained" color="charge" size="large" disabled={submitting}>
             {submitting ? 'Creando cuenta…' : 'Crear cuenta'}
           </Button>
         </Stack>

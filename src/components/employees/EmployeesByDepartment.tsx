@@ -4,7 +4,7 @@ import { EmptyState, LoadGate, PageHeader, Surface } from '../shared/Page';
 import ChargeMeter from '../shared/ChargeMeter';
 import { useEmployeesData } from './useEmployeesData';
 import { formatCurrency, initials } from '../../utils/format';
-import { brand } from '../../theme';
+
 
 const EmployeesByDepartment: React.FC = () => {
   const state = useEmployeesData();
@@ -59,7 +59,7 @@ const EmployeesByDepartment: React.FC = () => {
                     )}
                     {g.members.map((e) => (
                       <Box key={e.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, opacity: e.status ? 1 : 0.55 }}>
-                        <Avatar sx={{ width: 30, height: 30, fontSize: 12, fontWeight: 700, bgcolor: brand.violetSoft }}>{initials(e.name)}</Avatar>
+                        <Avatar sx={{ width: 30, height: 30, fontSize: 12, fontWeight: 700, bgcolor: 'surface.raised', color: 'text.primary' }}>{initials(e.name)}</Avatar>
                         <Box sx={{ minWidth: 0, flex: 1 }}>
                           <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                             {e.name}

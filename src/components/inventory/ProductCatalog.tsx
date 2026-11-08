@@ -8,13 +8,16 @@ import ProductThumb from './ProductThumb';
 import { NO_CATEGORIES, NO_PRODUCTS, useInventoryData } from './useInventoryData';
 import { useProductActions } from './useProductActions';
 import { formatCurrency } from '../../utils/format';
+import { matches } from '../../utils/text';
+import { priceWithTax } from '../../services/products.service';
+import { wide } from '../../theme';
 
 /** Vista de vitrina: los productos como los ve el asesor comercial frente al cliente. */
 const ProductCatalog: React.FC = () => {
   const state = useInventoryData();
   const products = state.data?.products ?? NO_PRODUCTS;
   const threshold = state.data?.settings.lowStockThreshold ?? 5;
-  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, reload: state.reload });
+  const actions = useProductActions({ products, categories: state.data?.categories ?? NO_CATEGORIES, threshold, uvt: state.data?.uvt, reload: state.reload });
   const [tab, setTab] = useState('all');
   const [search, setSearch] = useState('');
 
@@ -22,7 +25,7 @@ const ProductCatalog: React.FC = () => {
     const q = search.trim().toLowerCase();
     return products
       .filter((p) => p.status !== 'discontinued')
-      .filter((p) => (tab === 'all' || p.category === tab) && (!q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)));
+      .filter((p) => (tab === 'all' || p.category === tab) && matches(q, p.name, p.sku));
   }, [products, tab, search]);
 
   return (
@@ -53,38 +56,45 @@ const ProductCatalog: React.FC = () => {
             {visible.length === 0 ? (
               <EmptyState title="Nada para mostrar aquí" text="Crea un producto en esta categoría o cambia la búsqueda." />
             ) : (
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 2.5 }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 2 }}>
                 {visible.map((p) => (
                   <ButtonBase
                     key={p.id}
                     onClick={() => actions.openDetails(p)}
+                    aria-label={`${p.name}, ${formatCurrency(priceWithTax(p))}`}
                     sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'stretch',
-                      textAlign: 'left',
-                      borderRadius: 3,
-                      border: '1px solid',
-                      borderColor: 'divider',
-                      bgcolor: 'background.paper',
+                      position: 'relative',
+                      display: 'block',
+                      aspectRatio: '4 / 5',
+                      borderRadius: 5,
                       overflow: 'hidden',
-                      transition: 'border-color 150ms',
-                      '&:hover': { borderColor: 'primary.main' }
+                      bgcolor: 'surface.raised',
+                      textAlign: 'left',
+                      '& img': { transition: 'transform 400ms cubic-bezier(.2,.8,.2,1)' },
+                      '&:hover img, &:focus-visible img': { transform: 'scale(1.04)' }
                     }}
                   >
-                    <ProductThumb imageUrl={p.imageUrl} category={p.category} size="100%" height={150} radius={0} />
-                    <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 0.5, flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
+                    <Box sx={{ position: 'absolute', inset: 0 }}>
+                      <ProductThumb imageUrl={p.imageUrl} category={p.category} size="100%" height="100%" radius={0} />
+                    </Box>
+                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.88) 100%)' }} />
+                    <Box sx={{ position: 'absolute', top: 14, left: 14, px: 1.25, py: 0.25, borderRadius: 999, bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }}>
+                      <Typography variant="caption" sx={{ fontWeight: 700 }}>
                         {p.category}
                       </Typography>
-                      <Typography variant="subtitle1" sx={{ lineHeight: 1.3 }}>
-                        {p.name}
-                      </Typography>
-                      <Typography variant="h4" component="p" sx={{ mt: 0.5 }}>
-                        {formatCurrency(p.price)}
-                      </Typography>
-                      <Box sx={{ mt: 'auto', pt: 1.5 }}>
-                        <StockMeter stock={p.stock} minStock={p.minStock} threshold={threshold} width={88} />
+                    </Box>
+                    <Box sx={{ position: 'absolute', left: 18, right: 18, bottom: 16, color: '#fff' }}>
+                      <Typography sx={{ ...wide, fontSize: '1.25rem', lineHeight: 1.1 }}>{p.name}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 1, mt: 1.25 }}>
+                        <Box>
+                          <Typography sx={{ fontWeight: 800, fontSize: '1.0625rem' }}>{formatCurrency(priceWithTax(p))}</Typography>
+                          <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.65)' }}>
+                            IVA {p.taxRate} % incluido
+                          </Typography>
+                        </Box>
+                        <Box sx={{ color: '#fff', '& .MuiTypography-root': { color: '#fff' } }}>
+                          <StockMeter stock={p.stock} minStock={p.minStock} threshold={threshold} width={64} />
+                        </Box>
                       </Box>
                     </Box>
                   </ButtonBase>

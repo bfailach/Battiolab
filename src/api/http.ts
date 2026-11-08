@@ -38,3 +38,7 @@ export const withId = <T extends { _id?: string; id?: string }>(doc: T): T & { i
 });
 
 export default http;
+
+/** Las imágenes subidas se guardan como /uploads/archivo; se sirven desde el mismo servidor del API. */
+export const API_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, '');
+export const assetUrl = (path?: string) => (!path ? undefined : /^(https?:|data:)/.test(path) ? path : `${API_ORIGIN}${path}`);

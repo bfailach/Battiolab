@@ -1,11 +1,8 @@
 import React from 'react';
 import { Alert, Box, Button, CircularProgress, Paper, Stack, SxProps, Theme, Typography } from '@mui/material';
+import { wide } from '../../theme';
 
-export const PageHeader: React.FC<{ title: string; description?: string; actions?: React.ReactNode }> = ({
-  title,
-  description,
-  actions
-}) => (
+export const PageHeader: React.FC<{ title: string; description?: string; actions?: React.ReactNode }> = ({ title, description, actions }) => (
   <Box
     sx={{
       display: 'flex',
@@ -13,15 +10,15 @@ export const PageHeader: React.FC<{ title: string; description?: string; actions
       justifyContent: 'space-between',
       flexDirection: { xs: 'column', md: 'row' },
       gap: 2,
-      mb: 3
+      mb: 4
     }}
   >
-    <Box sx={{ maxWidth: 680 }}>
-      <Typography variant="h2" component="h1">
+    <Box sx={{ maxWidth: 720 }}>
+      <Typography variant="h1" sx={{ fontSize: { xs: '2rem', md: '2.75rem' } }}>
         {title}
       </Typography>
       {description && (
-        <Typography variant="body1" color="text.secondary" sx={{ mt: 0.5 }}>
+        <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 620 }}>
           {description}
         </Typography>
       )}
@@ -34,7 +31,7 @@ export const PageHeader: React.FC<{ title: string; description?: string; actions
   </Box>
 );
 
-/** Superficie con borde (sin sombra) y encabezado opcional. */
+/** Superficie plana, sin sombra. */
 export const Surface: React.FC<{
   title?: string;
   subtitle?: string;
@@ -42,24 +39,14 @@ export const Surface: React.FC<{
   children: React.ReactNode;
   padding?: number;
   sx?: SxProps<Theme>;
-}> = ({ title, subtitle, action, children, padding = 2.5, sx }) => (
-  <Paper variant="outlined" sx={{ borderRadius: 3, overflow: 'hidden', ...sx }}>
+}> = ({ title, subtitle, action, children, padding = 3, sx }) => (
+  <Paper sx={{ borderRadius: 5, overflow: 'hidden', border: '1px solid', borderColor: 'divider', ...sx }}>
     {(title || action) && (
-      <Box
-        sx={{
-          px: 2.5,
-          pt: 2,
-          pb: padding === 0 ? 2 : 0,
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: 2
-        }}
-      >
-        <Box>
+      <Box sx={{ px: 3, pt: 2.75, pb: padding === 0 ? 2 : 0, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{ minWidth: 0 }}>
           {title && <Typography variant="h5">{title}</Typography>}
           {subtitle && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25 }}>
               {subtitle}
             </Typography>
           )}
@@ -75,26 +62,29 @@ export interface Stat {
   label: string;
   value: React.ReactNode;
   hint?: React.ReactNode;
+  accent?: boolean;
 }
 
-/** Una sola franja de métricas separadas por divisores, en vez de tarjetas sueltas. */
+/** Franja de cifras grandes en tipografía ancha, separadas por líneas. */
 export const StatStrip: React.FC<{ stats: Stat[] }> = ({ stats }) => (
-  <Paper
-    variant="outlined"
+  <Box
     sx={{
-      borderRadius: 3,
       display: 'grid',
       gridTemplateColumns: { xs: '1fr 1fr', md: `repeat(${stats.length}, 1fr)` },
-      mb: 3
+      borderTop: '1px solid',
+      borderBottom: '1px solid',
+      borderColor: 'divider',
+      mb: 4
     }}
   >
     {stats.map((s, i) => (
       <Box
         key={s.label}
         sx={{
-          px: 2.5,
-          py: 2,
-          borderLeft: { md: i === 0 ? 'none' : '1px solid' },
+          py: 2.5,
+          pr: 2,
+          pl: { xs: i % 2 ? 2 : 0, md: i === 0 ? 0 : 3 },
+          borderLeft: { xs: i % 2 ? '1px solid' : 'none', md: i === 0 ? 'none' : '1px solid' },
           borderTop: { xs: i > 1 ? '1px solid' : 'none', md: 'none' },
           borderColor: { xs: 'divider', md: 'divider' }
         }}
@@ -102,28 +92,25 @@ export const StatStrip: React.FC<{ stats: Stat[] }> = ({ stats }) => (
         <Typography variant="body2" color="text.secondary">
           {s.label}
         </Typography>
-        <Typography variant="h3" component="p" sx={{ mt: 0.5, fontVariantNumeric: 'tabular-nums' }}>
+        <Typography component="p" sx={(t) => ({ ...wide, fontSize: { xs: '1.5rem', lg: '1.875rem' }, mt: 0.5, color: s.accent && t.palette.mode === 'dark' ? 'charge.main' : 'text.primary', lineHeight: 1.15 })}>
           {s.value}
         </Typography>
         {s.hint && (
-          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
+          <Typography variant="caption" color="text.secondary" component="div" sx={{ mt: 0.5 }}>
             {s.hint}
           </Typography>
         )}
       </Box>
     ))}
-  </Paper>
+  </Box>
 );
 
-export const EmptyState: React.FC<{
-  icon?: React.ReactNode;
-  title: string;
-  text?: string;
-  action?: React.ReactNode;
-}> = ({ icon, title, text, action }) => (
-  <Box sx={{ py: 6, px: 3, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
+export const EmptyState: React.FC<{ icon?: React.ReactNode; title: string; text?: string; action?: React.ReactNode }> = ({ icon, title, text, action }) => (
+  <Box sx={{ py: 7, px: 3, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
     {icon && <Box sx={{ color: 'text.secondary', '& svg': { fontSize: 40 } }}>{icon}</Box>}
-    <Typography variant="h5">{title}</Typography>
+    <Typography variant="h4" component="p">
+      {title}
+    </Typography>
     {text && (
       <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 420 }}>
         {text}
@@ -135,7 +122,7 @@ export const EmptyState: React.FC<{
 
 export const Loading: React.FC<{ label?: string }> = ({ label = 'Cargando…' }) => (
   <Box sx={{ py: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.5, color: 'text.secondary' }}>
-    <CircularProgress size={20} />
+    <CircularProgress size={20} sx={{ color: 'charge.main' }} />
     <Typography variant="body2">{label}</Typography>
   </Box>
 );
@@ -155,7 +142,6 @@ export const LoadError: React.FC<{ message: string; onRetry?: () => void }> = ({
   </Alert>
 );
 
-/** Envuelve la vista: muestra carga o error antes del contenido. */
 export function LoadGate<T>({
   state,
   children

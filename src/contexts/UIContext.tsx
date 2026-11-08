@@ -48,7 +48,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     } catch {
       /* sin almacenamiento */
     }
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    // El diseño de Battiolab parte del tema oscuro
+    return 'dark';
   });
   const [toast, setToast] = useState<{ message: string; severity: Severity; key: number } | null>(null);
   const [dialog, setDialog] = useState<(ConfirmOptions & { resolve: (v: boolean) => void }) | null>(null);
