@@ -1,315 +1,202 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Paper, Button, TextField, Alert, Modal } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import salesService, { Sale } from '../../services/sales.service';
+import { Box, Button, MenuItem, Stack, TextField, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
+import { EmptyState, LoadGate, PageHeader, StatStrip, Surface } from '../shared/Page';
+import DataTable, { Column } from '../shared/DataTable';
+import SearchField from '../shared/SearchField';
+import StatusChip, { saleTone } from '../shared/StatusChip';
 import SaleDetails from './SaleDetails';
-import NewSale from './NewSale';
+import { inPeriod, Period, periodLabel } from './salesFilters';
+import salesService, { Sale, SaleStatus, saleStatusLabel } from '../../services/sales.service';
+import { useLoad } from '../../hooks/useLoad';
+import { useUI } from '../../contexts/UIContext';
+import { formatCurrency, formatDate } from '../../utils/format';
+import { downloadCsv } from '../../utils/csv';
 
-const SearchBar = styled(TextField)({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: 'white',
-    borderRadius: 3,
-    '& fieldset': {
-      borderColor: '#E0E0E0',
-    },
-    '&:hover fieldset': {
-      borderColor: '#C95792',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#C95792',
-    },
-  },
-});
-
-const SaleCard = styled(Paper)({
-  backgroundColor: '#F8B55F',
-  borderRadius: 3,
-  padding: '16px',
-  marginBottom: '16px',
-});
-
-const ActionButton = styled(Button)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 16px',
-  fontWeight: 700,
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const ModalContent = styled(Box)({
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: '1200px',
-  maxHeight: '90vh',
-  overflow: 'auto',
-  outline: 'none',
-  backgroundColor: '#F5F5F5',
-  borderRadius: 3,
-  padding: '24px',
-});
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('es-CO', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return '#4CAF50';
-    case 'pending':
-      return '#FFC107';
-    case 'cancelled':
-      return '#F44336';
-    default:
-      return '#757575';
-  }
-};
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'Completada';
-    case 'pending':
-      return 'Pendiente';
-    case 'cancelled':
-      return 'Cancelada';
-    default:
-      return status;
-  }
-};
-
-const SalesList = () => {
+const SalesList: React.FC = () => {
   const navigate = useNavigate();
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // Estados para modales
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
+  const { notify, confirm } = useUI();
+  const state = useLoad(() => salesService.getAll());
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<SaleStatus | 'all'>('all');
+  const [period, setPeriod] = useState<Period>('30');
+  const [selected, setSelected] = useState<Sale | null>(null);
 
-  useEffect(() => {
-    loadSales();
-  }, []);
+  const inRange = useMemo(() => (state.data || []).filter((s) => inPeriod(s.date, period)), [state.data, period]);
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inRange.filter(
+      (s) =>
+        (status === 'all' || s.status === status) &&
+        (!q || s.client.name.toLowerCase().includes(q) || (s.number || '').toLowerCase().includes(q) || s.items.some((i) => i.productName?.toLowerCase().includes(q)))
+    );
+  }, [inRange, search, status]);
 
-  const loadSales = async () => {
+  const valid = inRange.filter((s) => s.status !== 'cancelled');
+  const revenue = valid.filter((s) => s.status === 'completed').reduce((t, s) => t + s.total, 0);
+  const pending = inRange.filter((s) => s.status === 'pending');
+
+  const columns: Column<Sale>[] = [
+    { key: 'number', label: 'N.º', sortValue: (s) => s.number || '', render: (s) => <Typography variant="body2" sx={{ fontWeight: 600 }}>{s.number || '—'}</Typography> },
+    { key: 'date', label: 'Fecha', sortValue: (s) => s.date, render: (s) => formatDate(s.date) },
+    { key: 'client', label: 'Cliente', sortValue: (s) => s.client.name, render: (s) => s.client.name },
+    {
+      key: 'items',
+      label: 'Productos',
+      hideBelow: 'lg',
+      render: (s) => (
+        <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: 260 }}>
+          {s.items.map((i) => `${i.quantity}× ${i.productName}`).join(', ')}
+        </Typography>
+      )
+    },
+    { key: 'payment', label: 'Pago', render: (s) => s.paymentMethod || '—', hideBelow: 'md' },
+    {
+      key: 'total',
+      label: 'Total',
+      align: 'right',
+      sortValue: (s) => s.total,
+      render: (s) => (
+        <Typography variant="body2" sx={{ fontWeight: 600, textDecoration: s.status === 'cancelled' ? 'line-through' : 'none', color: s.status === 'cancelled' ? 'text.secondary' : 'inherit' }}>
+          {formatCurrency(s.total)}
+        </Typography>
+      )
+    },
+    { key: 'status', label: 'Estado', render: (s) => <StatusChip label={saleStatusLabel[s.status]} tone={saleTone[s.status]} /> }
+  ];
+
+  const changeStatus = async (sale: Sale, next: SaleStatus) => {
+    if (next === 'cancelled') {
+      const ok = await confirm({
+        title: `¿Anular la venta ${sale.number || ''}?`,
+        message: 'Las unidades vuelven al inventario y la venta deja de contar en los reportes.',
+        confirmLabel: 'Anular venta',
+        destructive: true
+      });
+      if (!ok) return;
+    }
     try {
-      setIsLoading(true);
-      const data = await salesService.getAll();
-      setSales(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message || 'Error al cargar las ventas');
-    } finally {
-      setIsLoading(false);
+      const updated = await salesService.update(sale.id, { status: next });
+      setSelected(updated);
+      notify(next === 'cancelled' ? 'Venta anulada. El stock fue repuesto.' : `Venta ${saleStatusLabel[next].toLowerCase()}`);
+      state.reload();
+    } catch (e) {
+      notify((e as Error).message, 'error');
     }
   };
 
-  const handleViewDetails = (sale: Sale) => {
-    setSelectedSale(sale);
-    setIsDetailsOpen(true);
-  };
-
-  const handleEdit = (sale: Sale) => {
-    setSelectedSale(sale);
-    setIsEditOpen(true);
-  };
-
-  const handleCloseDetails = () => {
-    setIsDetailsOpen(false);
-    setSelectedSale(null);
-  };
-
-  const handleCloseEdit = () => {
-    setIsEditOpen(false);
-    setSelectedSale(null);
-  };
-
-  const handleDelete = async (saleId: string) => {
-    console.log('Intentando eliminar venta con ID:', saleId);
-    if (window.confirm('¿Está seguro que desea eliminar esta venta?')) {
-      try {
-        if (!saleId) {
-          throw new Error('ID de venta no válido');
-        }
-        await salesService.delete(saleId);
-        console.log('Venta eliminada con éxito:', saleId);
-        loadSales();
-      } catch (err: any) {
-        console.error('Error al eliminar venta:', err);
-        setError(err.message || 'Error al eliminar la venta');
-      }
+  const remove = async (sale: Sale) => {
+    const ok = await confirm({
+      title: `¿Eliminar la venta ${sale.number || ''}?`,
+      message: 'Se borra del sistema y, si no estaba anulada, las unidades vuelven al inventario. Para conservar el registro, anúlala.',
+      confirmLabel: 'Eliminar venta',
+      destructive: true
+    });
+    if (!ok) return;
+    try {
+      await salesService.delete(sale.id);
+      notify('Venta eliminada');
+      setSelected(null);
+      state.reload();
+    } catch (e) {
+      notify((e as Error).message, 'error');
     }
   };
 
-  const filteredSales = sales.filter(sale =>
-    sale.client.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const exportCsv = () =>
+    downloadCsv(
+      'ventas-battiolab.csv',
+      ['Número', 'Fecha', 'Cliente', 'Productos', 'Método de pago', 'Subtotal', 'Impuesto', 'Total', 'Estado'],
+      rows.map((s) => [
+        s.number,
+        s.date.slice(0, 10),
+        s.client.name,
+        s.items.map((i) => `${i.quantity}x ${i.productName}`).join('; '),
+        s.paymentMethod,
+        s.subtotal,
+        s.taxAmount,
+        s.total,
+        saleStatusLabel[s.status]
+      ])
+    );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 4, color: '#303030', fontWeight: 700 }}>
-        Lista de Ventas
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <SearchBar
-          placeholder="Buscar por cliente"
-          variant="outlined"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ maxWidth: 400 }}
-        />
-        <ActionButton>Filtros</ActionButton>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-        <ActionButton onClick={() => navigate('/dashboard/sales/new')}>
-          Nueva Venta
-        </ActionButton>
-      </Box>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {isLoading ? (
-        <Typography>Cargando ventas...</Typography>
-      ) : (
-        filteredSales.map((sale) => (
-          <SaleCard 
-            key={sale.id} 
-            elevation={2}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  Cliente: {sale.client.name}
-                </Typography>
-                <Typography variant="body1" color="text.secondary">
-                  Fecha: {formatDate(sale.date)}
-                </Typography>
-              </Box>
-              <Box sx={{ textAlign: 'right' }}>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {formatCurrency(sale.total)}
-                </Typography>
-                <Typography 
-                  variant="body1" 
-                  sx={{ 
-                    color: getStatusColor(sale.status),
-                    fontWeight: 600 
-                  }}
-                >
-                  {getStatusText(sale.status)}
-                </Typography>
-              </Box>
-            </Box>
-            <Box sx={{ display: 'flex', gap: 2 }}>
-              <ActionButton onClick={() => handleViewDetails(sale)}>
-                Ver Detalles
-              </ActionButton>
-              <ActionButton onClick={() => handleEdit(sale)}>
-                Editar
-              </ActionButton>
-              <Button
-                onClick={() => {
-                  console.log('Debug - Sale object:', sale);
-                  // Use _id as fallback if id is undefined
-                  const saleId = sale.id || sale._id;
-                  console.log('Debug - Sale ID to use:', saleId);
-                  if (saleId) {
-                    handleDelete(saleId);
-                  } else {
-                    setError('No se puede eliminar: ID de venta no encontrado');
-                  }
-                }}
-                sx={{
-                  backgroundColor: '#F44336',
-                  color: 'white',
-                  textTransform: 'none',
-                  borderRadius: 3,
-                  padding: '8px 16px',
-                  fontWeight: 700,
-                  '&:hover': {
-                    backgroundColor: '#D32F2F',
-                  },
-                }}
-              >
-                Eliminar
-              </Button>
-            </Box>
-          </SaleCard>
-        ))
-      )}
-
-      {/* Modal de Detalles */}
-      <Modal
-        open={isDetailsOpen}
-        onClose={handleCloseDetails}
-      >
-        <ModalContent>
-          {selectedSale && (
-            <SaleDetails
-              sale={selectedSale}
-              onEdit={() => {
-                handleCloseDetails();
-                handleEdit(selectedSale);
-              }}
-              onBack={handleCloseDetails}
+    <>
+      <PageHeader
+        title="Ventas"
+        description="Todas las ventas registradas. Anular una venta devuelve sus unidades al inventario."
+        actions={
+          <>
+            <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} onClick={exportCsv} disabled={!rows.length}>
+              Exportar CSV
+            </Button>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/dashboard/sales/new')}>
+              Nueva venta
+            </Button>
+          </>
+        }
+      />
+      <LoadGate state={state}>
+        {(sales) => (
+          <>
+            <StatStrip
+              stats={[
+                { label: 'Ingresos completados', value: formatCurrency(revenue), hint: periodLabel[period] },
+                { label: 'Ventas', value: valid.length, hint: `${inRange.length - valid.length} anuladas` },
+                { label: 'Ticket promedio', value: formatCurrency(valid.length ? valid.reduce((t, s) => t + s.total, 0) / valid.length : 0) },
+                { label: 'Pendientes de cobro', value: formatCurrency(pending.reduce((t, s) => t + s.total, 0)), hint: `${pending.length} ventas` }
+              ]}
             />
-          )}
-        </ModalContent>
-      </Modal>
-
-      {/* Modal de Edición */}
-      <Modal
-        open={isEditOpen}
-        onClose={handleCloseEdit}
-      >
-        <ModalContent>
-          {selectedSale && (
-            <NewSale
-              isEditing={true}
-              initialSale={{...selectedSale}}
-              onSaved={() => {
-                handleCloseEdit();
-                loadSales();
-              }}
-              onCancel={handleCloseEdit}
-            />
-          )}
-        </ModalContent>
-      </Modal>
-    </Box>
+            <Surface padding={0}>
+              <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ p: 2, alignItems: { md: 'center' } }}>
+                <SearchField value={search} onChange={setSearch} placeholder="Buscar por cliente, número o producto" />
+                <ToggleButtonGroup size="small" exclusive value={status} onChange={(_, v) => v && setStatus(v)} aria-label="Filtrar por estado">
+                  <ToggleButton value="all">Todas</ToggleButton>
+                  <ToggleButton value="completed">Completadas</ToggleButton>
+                  <ToggleButton value="pending">Pendientes</ToggleButton>
+                  <ToggleButton value="cancelled">Anuladas</ToggleButton>
+                </ToggleButtonGroup>
+                <Box sx={{ flex: 1 }} />
+                <TextField select fullWidth={false} label="Periodo" value={period} onChange={(e) => setPeriod(e.target.value as Period)} sx={{ minWidth: 190 }}>
+                  {(Object.keys(periodLabel) as Period[]).map((p) => (
+                    <MenuItem key={p} value={p}>
+                      {periodLabel[p]}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Stack>
+              <DataTable
+                rows={rows}
+                columns={columns}
+                rowKey={(s) => s.id}
+                onRowClick={setSelected}
+                initialSort={{ key: 'date', dir: 'desc' }}
+                empty={
+                  sales.length === 0 ? (
+                    <EmptyState
+                      icon={<ReceiptLongOutlinedIcon />}
+                      title="Todavía no hay ventas"
+                      text="Registra la primera venta: elige el cliente, agrega productos y confirma."
+                      action={
+                        <Button variant="contained" startIcon={<AddIcon />} onClick={() => navigate('/dashboard/sales/new')}>
+                          Nueva venta
+                        </Button>
+                      }
+                    />
+                  ) : (
+                    <EmptyState title="Ninguna venta coincide" text="Amplía el periodo o cambia el filtro de estado." />
+                  )
+                }
+              />
+            </Surface>
+          </>
+        )}
+      </LoadGate>
+      <SaleDetails sale={selected} onClose={() => setSelected(null)} onStatus={changeStatus} onDelete={remove} />
+    </>
   );
 };
 

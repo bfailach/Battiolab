@@ -1,16 +1,16 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import http, { withId } from '../api/http';
 
 export interface Client {
-  id?: string;  // Hacemos id opcional ya que usaremos _id
-  _id: string;
+  id: string;
+  _id?: string;
   name: string;
   document: string;
   email: string;
   phone: string;
   status: boolean;
-  lastPurchase?: string;
+  lastPurchase?: string | null;
   totalPurchases?: number;
+  totalSpent?: number;
   createdAt: string;
   updatedAt: string;
 }
@@ -23,50 +23,14 @@ export interface CreateClientData {
   status: boolean;
 }
 
-export type UpdateClientData = Partial<CreateClientData>;
-
 const clientsService = {
-  getAll: async (): Promise<Client[]> => {
-    const response = await axios.get(`${API_BASE_URL}/clients`);
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<Client> => {
-    const response = await axios.get(`${API_BASE_URL}/clients/${id}`);
-    return response.data;
-  },
-  
-create: async (data: CreateClientData): Promise<Client> => {
-  try {
-    // Create an explicit object with all required fields to ensure they're included
-    const clientData = {
-      name: data.name,
-      document: data.document,
-      email: data.email,
-      phone: data.phone,
-      status: data.status ?? true
-    };
-    
-    console.log('Sending client data:', clientData);
-    
-    // Use simple axios config without custom serialization
-    const response = await axios.post(`${API_BASE_URL}/clients`, clientData);
-    return response.data;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.error('Error completo:', error.response?.data);
-    }
-    throw error;
-  }
-},
-
-  update: async (id: string, data: UpdateClientData): Promise<Client> => {
-    const response = await axios.put(`${API_BASE_URL}/clients/${id}`, data);
-    return response.data;
-  },
-
+  getAll: async (): Promise<Client[]> => (await http.get('/clients')).data.map(withId),
+  getById: async (id: string): Promise<Client> => withId((await http.get(`/clients/${id}`)).data),
+  create: async (data: CreateClientData): Promise<Client> => withId((await http.post('/clients', data)).data),
+  update: async (id: string, data: Partial<CreateClientData>): Promise<Client> =>
+    withId((await http.put(`/clients/${id}`, data)).data),
   delete: async (id: string): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/clients/${id}`);
+    await http.delete(`/clients/${id}`);
   }
 };
 

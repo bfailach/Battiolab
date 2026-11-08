@@ -1,177 +1,119 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-  Button,
-  Divider,
-  Grid,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { Sale } from '../../services/sales.service';
+import { Box, Button, Stack, Typography } from '@mui/material';
+import PrintOutlinedIcon from '@mui/icons-material/PrintOutlined';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import BlockIcon from '@mui/icons-material/Block';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import DetailDrawer, { DetailRow } from '../shared/DetailDrawer';
+import StatusChip, { saleTone } from '../shared/StatusChip';
+import { Sale, SaleStatus, saleStatusLabel } from '../../services/sales.service';
+import { formatCurrency, formatDateTime } from '../../utils/format';
+import { printReceipt } from './receipt';
+import { useAuth } from '../../contexts/AuthContext';
+import { useUI } from '../../contexts/UIContext';
 
-interface SaleDetailsProps {
-  sale: Sale;
-  onEdit: () => void;
-  onBack: () => void;
-}
-
-const DetailPaper = styled(Paper)({
-  padding: '24px',
-  backgroundColor: 'white',
-  borderRadius: 3,
-});
-
-const ActionButton = styled(Button)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 16px',
-  fontWeight: 700,
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-};
-
-const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('es-CO', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
-};
-
-const getStatusColor = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return '#4CAF50';
-    case 'pending':
-      return '#FFC107';
-    case 'cancelled':
-      return '#F44336';
-    default:
-      return '#757575';
-  }
-};
-
-const getStatusText = (status: string) => {
-  switch (status) {
-    case 'completed':
-      return 'Completada';
-    case 'pending':
-      return 'Pendiente';
-    case 'cancelled':
-      return 'Cancelada';
-    default:
-      return status;
-  }
-};
-
-const SaleDetails = ({ sale, onEdit, onBack }: SaleDetailsProps) => {
+const SaleDetails: React.FC<{
+  sale: Sale | null;
+  onClose: () => void;
+  onStatus: (sale: Sale, status: SaleStatus) => void;
+  onDelete: (sale: Sale) => void;
+}> = ({ sale, onClose, onStatus, onDelete }) => {
+  const { isAdmin } = useAuth();
+  const { notify } = useUI();
   return (
-    <DetailPaper elevation={2}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, color: '#303030' }}>
-          Detalles de la Venta
-        </Typography>
-        <Chip
-          label={getStatusText(sale.status)}
-          sx={{
-            backgroundColor: getStatusColor(sale.status),
-            color: 'white',
-            fontWeight: 600,
-          }}
-        />
-      </Box>
-
-      <Divider sx={{ mb: 3 }} />
-
-      <Grid container spacing={3} sx={{ mb: 3 }}>
-        <Grid item xs={12} md={6}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Información del Cliente
-          </Typography>
-          <Typography>
-            <strong>Nombre:</strong> {sale.client.name}
-          </Typography>
-          <Typography>
-            <strong>Fecha:</strong> {formatDate(sale.date)}
-          </Typography>
-        </Grid>
-        <Grid item xs={12} md={6}>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Resumen de la Venta
-          </Typography>
-          <Typography>
-            <strong>Total:</strong> {formatCurrency(sale.total)}
-          </Typography>
-          <Typography>
-            <strong>Items:</strong> {sale.items.length}
-          </Typography>
-        </Grid>
-      </Grid>
-
-      <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-        Productos
-      </Typography>
-
-      {sale.items.map((item, index) => (
-        <Paper
-          key={`${item.productId}-${index}`}
-          sx={{
-            p: 2,
-            mb: 2,
-            backgroundColor: '#F8B55F',
-            borderRadius: 3,
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Box>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                {item.productName || 'Producto'}
+    <DetailDrawer
+      open={Boolean(sale)}
+      onClose={onClose}
+      title={sale ? `Venta ${sale.number || ''}`.trim() : ''}
+      subtitle={sale && <StatusChip label={saleStatusLabel[sale.status]} tone={saleTone[sale.status]} />}
+      actions={
+        sale && (
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<PrintOutlinedIcon />}
+              onClick={() => !printReceipt(sale) && notify('Permite ventanas emergentes para imprimir', 'warning')}
+            >
+              Imprimir
+            </Button>
+            {sale.status === 'pending' && (
+              <Button variant="contained" startIcon={<CheckCircleOutlineIcon />} onClick={() => onStatus(sale, 'completed')}>
+                Marcar completada
+              </Button>
+            )}
+            {sale.status !== 'cancelled' && (
+              <Button color="error" variant="outlined" startIcon={<BlockIcon />} onClick={() => onStatus(sale, 'cancelled')}>
+                Anular
+              </Button>
+            )}
+            {sale.status === 'cancelled' && (
+              <Button variant="outlined" onClick={() => onStatus(sale, 'pending')}>
+                Reactivar
+              </Button>
+            )}
+            {isAdmin && (
+              <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => onDelete(sale)}>
+                Eliminar
+              </Button>
+            )}
+          </>
+        )
+      }
+    >
+      {sale && (
+        <>
+          <DetailRow label="Fecha">{formatDateTime(sale.date)}</DetailRow>
+          <DetailRow label="Cliente">
+            {sale.client.name}
+            {sale.client.email && (
+              <Typography variant="caption" color="text.secondary" component="div">
+                {sale.client.email}
+                {sale.client.phone ? `, ${sale.client.phone}` : ''}
               </Typography>
-              <Typography variant="body2">
-                Cantidad: {item.quantity}
-              </Typography>
+            )}
+          </DetailRow>
+          <DetailRow label="Método de pago">{sale.paymentMethod || '—'}</DetailRow>
+          {sale.notes && <DetailRow label="Notas">{sale.notes}</DetailRow>}
+
+          <Typography variant="h5" sx={{ mt: 4, mb: 1 }}>
+            Productos
+          </Typography>
+          <Stack divider={<Box sx={{ borderTop: '1px solid', borderColor: 'divider' }} />}>
+            {sale.items.map((i) => (
+              <Box key={i.productId + i.price} sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, py: 1.25 }}>
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {i.productName}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {i.quantity} × {formatCurrency(i.price)}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  {formatCurrency(i.subtotal)}
+                </Typography>
+              </Box>
+            ))}
+          </Stack>
+          <Box sx={{ mt: 2, pt: 2, borderTop: '2px solid', borderColor: 'text.primary' }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+              <Typography variant="body2" color="text.secondary">Subtotal</Typography>
+              <Typography variant="body2">{formatCurrency(sale.subtotal)}</Typography>
             </Box>
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="body2">
-                Precio: {formatCurrency(item.price)}
-              </Typography>
-              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
-                Subtotal: {formatCurrency(item.subtotal)}
-              </Typography>
+            {sale.taxRate > 0 && (
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Typography variant="body2" color="text.secondary">Impuesto ({sale.taxRate} %)</Typography>
+                <Typography variant="body2">{formatCurrency(sale.taxAmount)}</Typography>
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
+              <Typography variant="h4" component="p">Total</Typography>
+              <Typography variant="h4" component="p">{formatCurrency(sale.total)}</Typography>
             </Box>
           </Box>
-        </Paper>
-      ))}
-
-      <Box sx={{ mt: 4, display: 'flex', gap: 2 }}>
-        <ActionButton onClick={onEdit}>
-          Editar Venta
-        </ActionButton>
-        <Button
-          variant="outlined"
-          onClick={onBack}
-          sx={{ borderColor: '#3D365C', color: '#3D365C' }}
-        >
-          Volver
-        </Button>
-      </Box>
-    </DetailPaper>
+        </>
+      )}
+    </DetailDrawer>
   );
 };
 

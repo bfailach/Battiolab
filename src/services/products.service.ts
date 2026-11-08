@@ -1,19 +1,18 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import http, { withId } from '../api/http';
 
-const API_URL = `${API_BASE_URL}/products`;
+export type ProductStatus = 'active' | 'inactive' | 'discontinued';
 
 export interface Product {
   id: string;
   name: string;
   sku: string;
-  category: 'Scooters' | 'Motos' | 'Baterías' | 'Repuestos';
+  category: string;
   description?: string;
   price: number;
   stock: number;
   minStock: number;
   imageUrl?: string;
-  status: 'active' | 'inactive' | 'discontinued';
+  status: ProductStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -21,105 +20,60 @@ export interface Product {
 export interface CreateProductData {
   name: string;
   sku: string;
-  category: 'Scooters' | 'Motos' | 'Baterías' | 'Repuestos';
+  category: string;
   description?: string;
   price: number;
   stock: number;
   minStock: number;
   imageUrl?: string;
-  status?: 'active' | 'inactive' | 'discontinued';
+  status?: ProductStatus;
 }
 
-export type UpdateProductData = Partial<CreateProductData>;
-
-class ProductsService {
-  private transformProduct(data: any): Product {
-    return {
-      id: data._id,
-      name: data.name,
-      sku: data.sku,
-      category: data.category,
-      description: data.description,
-      price: data.price,
-      stock: data.stock,
-      minStock: data.minStock,
-      imageUrl: data.imageUrl,
-      status: data.status,
-      createdAt: data.createdAt,
-      updatedAt: data.updatedAt
-    };
-  }
-
-  async getAll(category?: string): Promise<Product[]> {
-    try {
-      const params = category ? { category } : {};
-      const response = await axios.get(API_URL, { params });
-      return response.data.map(this.transformProduct);
-    } catch (error: any) {
-      this.handleError(error);
-      throw error;
-    }
-  }
-
-  async getById(id: string): Promise<Product> {
-    try {
-      const response = await axios.get(`${API_URL}/${id}`);
-      return this.transformProduct(response.data);
-    } catch (error: any) {
-      this.handleError(error);
-      throw error;
-    }
-  }
-
-  async create(data: CreateProductData): Promise<Product> {
-    try {
-      const response = await axios.post(API_URL, data);
-      return this.transformProduct(response.data);
-    } catch (error: any) {
-      this.handleError(error);
-      throw error;
-    }
-  }
-
-  async update(id: string, data: UpdateProductData): Promise<Product> {
-    if (!id) {
-      throw new Error('Se requiere un ID válido para actualizar el producto');
-    }
-    try {
-      const response = await axios.put(`${API_URL}/${id}`, data);
-      return this.transformProduct(response.data);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al actualizar el producto');
-    }
-  }
-
-  async delete(id: string): Promise<void> {
-    try {
-      await axios.delete(`${API_URL}/${id}`);
-    } catch (error: any) {
-      this.handleError(error);
-      throw error;
-    }
-  }
-
-  async updateStock(id: string, stock: number): Promise<Product> {
-    if (!id) {
-      throw new Error('Se requiere un ID válido para actualizar el stock');
-    }
-    try {
-      const response = await axios.patch(`${API_URL}/${id}/stock`, { stock });
-      return this.transformProduct(response.data);
-    } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Error al actualizar el stock');
-    }
-  }
-
-  private handleError(error: any) {
-    if (error.response) {
-      throw new Error(error.response.data.message || 'Error en la solicitud');
-    }
-    throw error;
-  }
+export interface StockMovement {
+  id: string;
+  _id?: string;
+  product?: { id: string; name: string; sku: string } | null;
+  type: 'in' | 'out' | 'adjust';
+  quantity: number;
+  stockAfter: number;
+  reason: 'sale' | 'sale_cancelled' | 'lot' | 'scan' | 'manual' | 'return';
+  reference?: string;
+  note?: string;
+  user?: string;
+  createdAt: string;
 }
 
-export default new ProductsService();
+export const movementReasonLabel: Record<StockMovement['reason'], string> = {
+  sale: 'Venta',
+  sale_cancelled: 'Venta anulada',
+  lot: 'Ingreso de lote',
+  scan: 'Escáner',
+  manual: 'Ajuste manual',
+  return: 'Devolución'
+};
+
+const productsService = {
+  getAll: async (category?: string): Promise<Product[]> =>
+    (await http.get('/products', { params: category ? { category } : {} })).data.map(withId),
+  getById: async (id: string): Promise<Product> => withId((await http.get(`/products/${id}`)).data),
+  getBySku: async (sku: string): Promise<Product> =>
+    withId((await http.get(`/products/sku/${encodeURIComponent(sku)}`)).data),
+  create: async (data: CreateProductData): Promise<Product> => withId((await http.post('/products', data)).data),
+  update: async (id: string, data: Partial<CreateProductData>): Promise<Product> =>
+    withId((await http.put(`/products/${id}`, data)).data),
+  delete: async (id: string): Promise<void> => {
+    await http.delete(`/products/${id}`);
+  },
+  /** Fija el stock a un valor exacto (conteo físico). */
+  updateStock: async (id: string, stock: number, note?: string): Promise<Product> =>
+    withId((await http.patch(`/products/${id}/stock`, { stock, note })).data),
+  /** Suma (delta > 0) o resta (delta < 0) unidades. */
+  moveStock: async (id: string, delta: number, note?: string, reason?: 'scan' | 'return'): Promise<Product> =>
+    withId((await http.post(`/products/${id}/stock/move`, { delta, note, reason })).data),
+  getMovements: async (id: string): Promise<StockMovement[]> =>
+    (await http.get(`/products/${id}/movements`)).data.map(withId),
+  getAllMovements: async (limit = 50): Promise<StockMovement[]> =>
+    (await http.get('/movements', { params: { limit } })).data
+};
+
+export default productsService;

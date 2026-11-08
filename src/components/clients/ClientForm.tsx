@@ -1,202 +1,80 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Paper,
-  FormControlLabel,
-  Switch,
-  Alert,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
+import React, { useEffect, useState } from 'react';
+import { FormControlLabel, Grid, Switch, TextField } from '@mui/material';
+import FormDialog from '../shared/FormDialog';
+import { Client, CreateClientData } from '../../services/clients.service';
 
-interface ClientFormData {
-  name: string;
-  document: string;
-  email: string;
-  phone: string;
-  status: boolean;
-}
+const empty: CreateClientData = { name: '', document: '', email: '', phone: '', status: true };
 
-interface ClientFormProps {
-  initialData?: ClientFormData;
-  onSubmit: (data: ClientFormData) => void;
-  onCancel: () => void;
-  isEditing?: boolean;
-}
+const ClientForm: React.FC<{
+  open: boolean;
+  client?: Client | null;
+  onClose: () => void;
+  onSubmit: (data: CreateClientData) => Promise<void>;
+}> = ({ open, client, onClose, onSubmit }) => {
+  const [form, setForm] = useState<CreateClientData>(empty);
+  const [errors, setErrors] = useState<Partial<Record<keyof CreateClientData, string>>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-const FormContainer = styled(Paper)({
-  padding: '24px',
-  backgroundColor: 'white',
-  borderRadius: 3,
-});
-
-const ActionButton = styled(Button)({
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 16px',
-  fontWeight: 700,
-});
-
-const SaveButton = styled(ActionButton)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const ClientForm = ({
-  initialData,
-  onSubmit,
-  onCancel,
-  isEditing = false,
-}: ClientFormProps) => {
-  const [formData, setFormData] = useState<ClientFormData>({
-    name: '',
-    document: '',
-    email: '',
-    phone: '',
-    status: true,
-    ...initialData,
-  });
-
-  const [errors, setErrors] = useState<Partial<ClientFormData>>({});
-
-  const validateForm = () => {
-    const newErrors: Partial<ClientFormData> = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
+  useEffect(() => {
+    if (open) {
+      setForm(client ? { name: client.name, document: client.document, email: client.email, phone: client.phone, status: client.status } : empty);
+      setErrors({});
+      setError(null);
     }
+  }, [open, client]);
 
-    if (!formData.document.trim()) {
-      newErrors.document = 'El documento es requerido';
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido';
-    }
+  const set = (k: keyof CreateClientData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: e.target.value }));
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const validate = () => {
+    const next: typeof errors = {};
+    if (!form.name.trim()) next.name = 'Escribe el nombre';
+    if (!form.document.trim()) next.document = 'Escribe el documento';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Escribe un correo válido';
+    if (!form.phone.trim()) next.phone = 'Escribe el teléfono';
+    setErrors(next);
+    return Object.keys(next).length === 0;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Ensure all fields are present and properly formatted
-    if (validateForm()) {
-      // Create a fresh object with explicit property assignments to avoid any reference issues
-      // and ensure the document field is explicitly converted to a string
-      const dataToSubmit = {
-        name: formData.name.trim(),
-        document: String(formData.document).trim(), // Explicitly convert to string
-        email: formData.email.trim(),
-        phone: formData.phone.trim(),
-        status: Boolean(formData.status)
-      };
-      
-      // Log the data being submitted to help debug
-      console.log('Form data being submitted:', dataToSubmit);
-      
-      onSubmit(dataToSubmit);
-    }
-  };
-
-  const handleChange = (field: keyof ClientFormData) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    setFormData({
-      ...formData,
-      [field]: field === 'status' ? e.target.checked : e.target.value,
-    });
-    if (errors[field]) {
-      setErrors({
-        ...errors,
-        [field]: undefined,
-      });
+  const submit = async () => {
+    if (!validate()) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ ...form, name: form.name.trim(), document: form.document.trim(), email: form.email.trim(), phone: form.phone.trim() });
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <FormContainer>
-      <Typography variant="h5" sx={{ mb: 3, color: '#303030', fontWeight: 700 }}>
-        {isEditing ? 'Editar Cliente' : 'Nuevo Cliente'}
-      </Typography>
-
-      <form onSubmit={handleSubmit}>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField
-            label="Nombre"
-            value={formData.name}
-            onChange={handleChange('name')}
-            error={!!errors.name}
-            helperText={errors.name}
-            required
-          />
-
-          <TextField
-            label="Documento"
-            value={formData.document}
-            onChange={handleChange('document')}
-            error={!!errors.document}
-            helperText={errors.document}
-            required
-          />
-
-          <TextField
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange('email')}
-            error={!!errors.email}
-            helperText={errors.email}
-            required
-          />
-
-          <TextField
-            label="Teléfono"
-            value={formData.phone}
-            onChange={handleChange('phone')}
-            error={!!errors.phone}
-            helperText={errors.phone}
-            required
-          />
-
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.status}
-                onChange={handleChange('status')}
-                color="primary"
-              />
-            }
-            label="Cliente Activo"
-          />
-
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            <SaveButton type="submit">
-              {isEditing ? 'Guardar Cambios' : 'Crear Cliente'}
-            </SaveButton>
-            <Button
-              variant="outlined"
-              onClick={onCancel}
-              sx={{ borderColor: '#3D365C', color: '#3D365C' }}
-            >
-              Cancelar
-            </Button>
-          </Box>
-        </Box>
-      </form>
-    </FormContainer>
+    <FormDialog
+      open={open}
+      title={client ? 'Editar cliente' : 'Nuevo cliente'}
+      submitLabel={client ? 'Guardar cambios' : 'Crear cliente'}
+      onClose={onClose}
+      onSubmit={submit}
+      submitting={submitting}
+      error={error}
+    >
+      <TextField label="Nombre completo" value={form.name} onChange={set('name')} error={!!errors.name} helperText={errors.name} autoFocus required />
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Documento" value={form.document} onChange={set('document')} error={!!errors.document} helperText={errors.document} required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Teléfono" value={form.phone} onChange={set('phone')} error={!!errors.phone} helperText={errors.phone} required />
+        </Grid>
+      </Grid>
+      <TextField label="Correo electrónico" type="email" value={form.email} onChange={set('email')} error={!!errors.email} helperText={errors.email} required />
+      <FormControlLabel
+        control={<Switch checked={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.checked }))} />}
+        label={form.status ? 'Cliente activo' : 'Cliente inactivo'}
+      />
+    </FormDialog>
   );
 };
 

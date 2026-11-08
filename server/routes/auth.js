@@ -1,94 +1,71 @@
 const router = require('express').Router();
-const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { requireAuth, signToken } = require('../middleware/auth');
+const { asyncHandler, httpError } = require('../utils/asyncHandler');
 
-// Registro
-router.post('/register', async (req, res) => {
-  try {
-    const { email, password, siteCode } = req.body;
+const publicUser = (user) => ({
+  id: user._id,
+  email: user.email,
+  name: user.name || user.username,
+  role: user.role,
+  siteCode: user.siteCode
+});
 
-    // Verificar si el usuario ya existe
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'El usuario ya existe' });
+router.post(
+  '/register',
+  asyncHandler(async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    const siteCode = String(req.body.siteCode || '').trim();
+    const name = req.body.name ? String(req.body.name).trim() : undefined;
+
+    if (!email || !password || !siteCode) throw httpError(400, 'Completa correo, contraseña y código de sede');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw httpError(400, 'El correo no tiene un formato válido');
+    if (password.length < 6) throw httpError(400, 'La contraseña debe tener al menos 6 caracteres');
+    if (process.env.SITE_CODE && siteCode !== process.env.SITE_CODE) {
+      throw httpError(400, 'El código de sede no es válido');
     }
+    if (await User.findOne({ email })) throw httpError(400, 'Ya existe una cuenta con ese correo');
 
-    // Crear nuevo usuario con username derivado del email
-    const username = email.split('@')[0];
-    const user = new User({
+    // La primera cuenta creada administra el sistema; las siguientes son usuarios normales
+    const isFirst = (await User.estimatedDocumentCount()) === 0;
+    const user = await User.create({
       email,
-      username,
+      name,
+      username: email.split('@')[0],
       password,
-      siteCode
+      siteCode,
+      role: isFirst ? 'admin' : 'user'
     });
 
-    await user.save();
+    res.status(201).json({ token: signToken(user), user: publicUser(user) });
+  })
+);
 
-    // Generar token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'battiolab-secret-key',
-      { expiresIn: '24h' }
-    );
+router.post(
+  '/login',
+  asyncHandler(async (req, res) => {
+    const email = String(req.body.email || '').trim().toLowerCase();
+    const password = String(req.body.password || '');
+    if (!email || !password) throw httpError(400, 'Ingresa tu correo y contraseña');
 
-    res.status(201).json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error en registro:', error);
-    res.status(500).json({ 
-      message: 'Error en el servidor', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'production' ? null : error.stack 
-    });
-  }
-});
-
-// Login
-router.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Buscar usuario
     const user = await User.findOne({ email });
-    if (!user) {
-      return res.status(400).json({ message: 'Usuario no encontrado' });
+    // Mismo mensaje en ambos casos para no revelar qué cuentas existen
+    if (!user || !(await user.comparePassword(password))) {
+      throw httpError(400, 'Correo o contraseña incorrectos');
     }
+    res.json({ token: signToken(user), user: publicUser(user) });
+  })
+);
 
-    // Verificar contraseña
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: 'Contraseña incorrecta' });
-    }
-
-    // Generar token
-    const token = jwt.sign(
-      { id: user._id, email: user.email, role: user.role },
-      process.env.JWT_SECRET || 'battiolab-secret-key',
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      token,
-      user: {
-        id: user._id,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Error en login:', error);
-    res.status(500).json({ 
-      message: 'Error en el servidor', 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'production' ? null : error.stack 
-    });
-  }
-});
+router.get(
+  '/me',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) throw httpError(401, 'La cuenta ya no existe');
+    res.json(publicUser(user));
+  })
+);
 
 module.exports = router;

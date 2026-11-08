@@ -1,1 +1,9 @@
 node_modules
+server/node_modules
+build
+dist
+coverage
+.env
+server/.env
+*.log
+.DS_Store

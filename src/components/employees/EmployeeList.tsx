@@ -1,307 +1,217 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, TextField, Typography, Paper, Chip, Modal } from '@mui/material';
-import { styled } from '@mui/material/styles';
-import employeesService, { Employee, CreateEmployeeData } from '../../services/employees.service';
+import React, { useMemo, useState } from 'react';
+import { Avatar, Box, Button, MenuItem, Stack, TextField, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import BadgeOutlinedIcon from '@mui/icons-material/BadgeOutlined';
+import { EmptyState, LoadGate, PageHeader, Surface } from '../shared/Page';
+import DataTable, { Column } from '../shared/DataTable';
+import SearchField from '../shared/SearchField';
+import StatusChip from '../shared/StatusChip';
+import DetailDrawer, { DetailRow } from '../shared/DetailDrawer';
 import EmployeeForm from './EmployeeForm';
-import EmployeeDetails from './EmployeeDetails';
+import { useEmployeesData } from './useEmployeesData';
+import employeesService, { CreateEmployeeData, Employee } from '../../services/employees.service';
+import { useUI } from '../../contexts/UIContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency, formatDate, initials, yearsSince } from '../../utils/format';
+import { brand } from '../../theme';
 
-const SearchBar = styled(TextField)({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: 'white',
-    borderRadius: 3,
-    '& fieldset': {
-      borderColor: '#E0E0E0',
+const tenure = (d: string) => {
+  const y = yearsSince(d);
+  if (y < 1) return `${Math.max(0, Math.round(y * 12))} meses`;
+  return `${y.toFixed(1).replace('.', ',')} años`;
+};
+
+const EmployeeList: React.FC = () => {
+  const { notify, confirm } = useUI();
+  const { isAdmin } = useAuth();
+  const state = useEmployeesData();
+  const [search, setSearch] = useState('');
+  const [dept, setDept] = useState('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Employee | null>(null);
+  const [selected, setSelected] = useState<Employee | null>(null);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (state.data?.employees || []).filter(
+      (e) =>
+        (dept === 'all' || e.department === dept) &&
+        (!q || [e.name, e.email, e.position, e.phone].some((v) => v?.toLowerCase().includes(q)))
+    );
+  }, [state.data, search, dept]);
+
+  const columns: Column<Employee>[] = [
+    {
+      key: 'name',
+      label: 'Empleado',
+      sortValue: (e) => e.name,
+      render: (e) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar sx={{ width: 34, height: 34, fontSize: 13, fontWeight: 700, bgcolor: e.status ? brand.violetSoft : 'action.disabled' }}>
+            {initials(e.name)}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+              {e.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" component="div" noWrap>
+              {e.email}
+            </Typography>
+          </Box>
+        </Box>
+      )
     },
-    '&:hover fieldset': {
-      borderColor: '#C95792',
-    },
-    '&.Mui-focused fieldset': {
-      borderColor: '#C95792',
-    },
-  },
-});
+    { key: 'position', label: 'Cargo', sortValue: (e) => e.position, render: (e) => e.position },
+    { key: 'department', label: 'Departamento', sortValue: (e) => e.department, render: (e) => e.department, hideBelow: 'md' },
+    { key: 'hireDate', label: 'Antigüedad', sortValue: (e) => -new Date(e.hireDate).getTime(), render: (e) => tenure(e.hireDate), hideBelow: 'lg' },
+    { key: 'salary', label: 'Salario', align: 'right', sortValue: (e) => e.salary, render: (e) => formatCurrency(e.salary), hideBelow: 'md' },
+    { key: 'status', label: 'Estado', render: (e) => <StatusChip label={e.status ? 'Activo' : 'Inactivo'} tone={e.status ? 'ok' : 'neutral'} /> }
+  ];
 
-const ActionButton = styled(Button)({
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 16px',
-  fontWeight: 700,
-});
-
-const AddButton = styled(ActionButton)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const EmployeeCard = styled(Paper)({
-  backgroundColor: '#F8B55F',
-  borderRadius: 3,
-  padding: '16px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-});
-
-const StatusChip = styled(Chip)({
-  borderRadius: 3,
-  fontWeight: 700,
-  '&.active': {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-  },
-  '&.inactive': {
-    backgroundColor: '#FF5252',
-    color: 'white',
-  },
-});
-
-const ModalContent = styled(Box)({
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: '800px',
-  maxHeight: '90vh',
-  overflow: 'auto',
-  outline: 'none',
-});
-
-const EmployeeList = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Estados para modales
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  const loadEmployees = async () => {
-    try {
-      setIsLoading(true);
-      const data = await employeesService.getAll();
-      setEmployees(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleViewDetails = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setIsDetailsOpen(true);
-  };
-
-  const handleEditClick = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setIsEditing(true);
-    setIsFormOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedEmployee(null);
-    setIsEditing(false);
-  };
-
-  const handleCloseDetails = () => {
-    setIsDetailsOpen(false);
-    setSelectedEmployee(null);
-  };
-
-  const handleCreateEmployee = async (data: CreateEmployeeData) => {
-    try {
+  const save = async (data: CreateEmployeeData) => {
+    if (editing) {
+      const updated = await employeesService.update(editing.id, data);
+      if (selected?.id === updated.id) setSelected(updated);
+      notify('Empleado actualizado');
+    } else {
       await employeesService.create(data);
-      await loadEmployees();
-      setIsFormOpen(false);
-    } catch (err: any) {
-      setError(err.message);
+      notify('Empleado creado');
     }
+    setFormOpen(false);
+    setEditing(null);
+    state.reload();
   };
 
-  const handleUpdateEmployee = async (data: CreateEmployeeData) => {
-    if (!selectedEmployee) return;
+  const remove = async (e: Employee) => {
+    const ok = await confirm({
+      title: `¿Eliminar a ${e.name}?`,
+      message: 'Si solo dejó de trabajar aquí, márcalo como inactivo para conservar su registro.',
+      confirmLabel: 'Eliminar empleado',
+      destructive: true
+    });
+    if (!ok) return;
     try {
-      await employeesService.update(selectedEmployee.id, data);
-      await loadEmployees();
-      setIsFormOpen(false);
-      setSelectedEmployee(null);
-      setIsEditing(false);
-    } catch (err: any) {
-      setError(err.message);
+      await employeesService.delete(e.id);
+      notify('Empleado eliminado');
+      setSelected(null);
+      state.reload();
+    } catch (err) {
+      notify((err as Error).message, 'error');
     }
   };
 
-  const filteredEmployees = employees.filter(employee =>
-    employee.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    employee.department.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES');
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
+  const openNew = () => {
+    setEditing(null);
+    setFormOpen(true);
   };
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 4, color: '#303030', fontWeight: 700 }}>
-        Listado de Empleados
-      </Typography>
+    <>
+      <PageHeader
+        title="Empleados"
+        description="El equipo de ventas, taller y administración."
+        actions={
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
+            Nuevo empleado
+          </Button>
+        }
+      />
+      <LoadGate state={state}>
+        {(data) => (
+          <Surface padding={0}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 2 }}>
+              <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre, cargo o correo" />
+              <TextField select fullWidth={false} label="Departamento" value={dept} onChange={(e) => setDept(e.target.value)} sx={{ minWidth: 200 }}>
+                <MenuItem value="all">Todos</MenuItem>
+                {data.departments.map((d) => (
+                  <MenuItem key={d} value={d}>
+                    {d}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Stack>
+            <DataTable
+              rows={rows}
+              columns={columns}
+              rowKey={(e) => e.id}
+              onRowClick={setSelected}
+              initialSort={{ key: 'name', dir: 'asc' }}
+              empty={
+                data.employees.length === 0 ? (
+                  <EmptyState
+                    icon={<BadgeOutlinedIcon />}
+                    title="Todavía no hay empleados"
+                    text="Agrega a tu equipo para ver la nómina y los reportes por departamento."
+                    action={
+                      <Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>
+                        Nuevo empleado
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState title="Ningún empleado coincide" text="Prueba con otro término o cambia el departamento." />
+                )
+              }
+            />
+          </Surface>
+        )}
+      </LoadGate>
 
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <SearchBar
-          placeholder="Buscar empleado"
-          variant="outlined"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ maxWidth: 400 }}
-        />
-        <ActionButton>Filtros</ActionButton>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-        <AddButton onClick={() => setIsFormOpen(true)}>
-          Agregar Empleado
-        </AddButton>
-      </Box>
-
-      {error && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          {error}
-        </Typography>
-      )}
-
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-        gap: 3 
-      }}>
-        {filteredEmployees.map((employee) => (
-          <EmployeeCard key={employee.id} elevation={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {employee.name}
-              </Typography>
-              <StatusChip
-                label={employee.status ? 'Activo' : 'Inactivo'}
-                className={employee.status ? 'active' : 'inactive'}
-              />
-            </Box>
-            
-            <Typography variant="body2" sx={{ color: '#666' }}>
-              {employee.position}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#666' }}>
-              {employee.department}
-            </Typography>
-            
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Email: {employee.email}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Teléfono: {employee.phone}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Fecha de contratación: {formatDate(employee.hireDate)}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Salario: {formatCurrency(employee.salary)}
-              </Typography>
-            </Box>
-
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1, 
-              mt: 2 
-            }}>
-              <Button 
-                variant="contained" 
-                fullWidth
-                onClick={() => handleViewDetails(employee)}
-                sx={{ 
-                  backgroundColor: '#3D365C',
-                  '&:hover': {
-                    backgroundColor: '#2D284C',
-                  }
-                }}
-              >
-                Ver Detalles
-              </Button>
-              <Button 
-                variant="contained" 
-                fullWidth
-                onClick={() => handleEditClick(employee)}
-                sx={{ 
-                  backgroundColor: '#C95792',
-                  '&:hover': {
-                    backgroundColor: '#B94B82',
-                  }
+      <EmployeeForm
+        open={formOpen}
+        employee={editing}
+        departments={state.data?.departments || []}
+        positions={state.data?.positions || []}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={save}
+      />
+      <DetailDrawer
+        open={Boolean(selected)}
+        onClose={() => setSelected(null)}
+        title={selected?.name || ''}
+        subtitle={selected && `${selected.position}, ${selected.department}`}
+        actions={
+          selected && (
+            <>
+              <Button
+                variant="outlined"
+                startIcon={<EditOutlinedIcon />}
+                onClick={() => {
+                  setEditing(selected);
+                  setFormOpen(true);
                 }}
               >
                 Editar
               </Button>
-            </Box>
-          </EmployeeCard>
-        ))}
-      </Box>
-
-      <Modal
-        open={isFormOpen}
-        onClose={handleCloseForm}
+              {isAdmin && (
+                <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => remove(selected)}>
+                  Eliminar
+                </Button>
+              )}
+            </>
+          )
+        }
       >
-        <ModalContent>
-          <EmployeeForm
-            initialData={selectedEmployee || undefined}
-            onSubmit={isEditing ? handleUpdateEmployee : handleCreateEmployee}
-            onCancel={handleCloseForm}
-            isEditing={isEditing}
-          />
-        </ModalContent>
-      </Modal>
-
-      <Modal
-        open={isDetailsOpen}
-        onClose={handleCloseDetails}
-      >
-        <ModalContent>
-          {selectedEmployee && (
-            <EmployeeDetails
-              employee={selectedEmployee}
-              onEdit={() => {
-                handleCloseDetails();
-                handleEditClick(selectedEmployee);
-              }}
-              onBack={handleCloseDetails}
-            />
-          )}
-        </ModalContent>
-      </Modal>
-    </Box>
+        {selected && (
+          <>
+            <DetailRow label="Estado">
+              <StatusChip label={selected.status ? 'Activo' : 'Inactivo'} tone={selected.status ? 'ok' : 'neutral'} />
+            </DetailRow>
+            <DetailRow label="Correo">{selected.email}</DetailRow>
+            <DetailRow label="Teléfono">{selected.phone}</DetailRow>
+            <DetailRow label="Contratación">{formatDate(selected.hireDate)}</DetailRow>
+            <DetailRow label="Antigüedad">{tenure(selected.hireDate)}</DetailRow>
+            <DetailRow label="Salario mensual">{formatCurrency(selected.salary)}</DetailRow>
+          </>
+        )}
+      </DetailDrawer>
+    </>
   );
 };
 
-export default EmployeeList; 
+export default EmployeeList;

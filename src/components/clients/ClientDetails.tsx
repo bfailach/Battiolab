@@ -1,155 +1,99 @@
 import React from 'react';
-import {
-  Box,
-  Typography,
-  Paper,
-  Chip,
-  Button,
-  Divider,
-  Grid,
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { Box, Button, Stack, Typography } from '@mui/material';
+import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import HistoryIcon from '@mui/icons-material/History';
+import DetailDrawer, { DetailRow } from '../shared/DetailDrawer';
+import StatusChip, { saleTone } from '../shared/StatusChip';
 import { Client } from '../../services/clients.service';
+import { Sale, saleStatusLabel } from '../../services/sales.service';
+import { formatCurrency, formatDate } from '../../utils/format';
+import { useAuth } from '../../contexts/AuthContext';
 
-interface ClientDetailsProps {
-  client: Client;
-  onEdit: () => void;
-  onBack: () => void;
-}
-
-const StyledPaper = styled(Paper)({
-  padding: '24px',
-  backgroundColor: 'white',
-  borderRadius: 3,
-});
-
-const DetailItem = styled(Box)({
-  marginBottom: '16px',
-});
-
-const DetailLabel = styled(Typography)({
-  color: '#666',
-  fontSize: '0.875rem',
-  marginBottom: '4px',
-});
-
-const DetailValue = styled(Typography)({
-  color: '#303030',
-  fontSize: '1rem',
-  fontWeight: 700,
-});
-
-const StatusChip = styled(Chip)({
-  borderRadius: 3,
-  fontWeight: 700,
-  '&.active': {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-  },
-  '&.inactive': {
-    backgroundColor: '#FF5252',
-    color: 'white',
-  },
-});
-
-const ActionButton = styled(Button)({
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 24px',
-  fontWeight: 700,
-});
-
-const EditButton = styled(ActionButton)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const BackButton = styled(ActionButton)({
-  backgroundColor: '#C95792',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#B94B82',
-  },
-});
-
-const ClientDetails: React.FC<ClientDetailsProps> = ({
-  client,
-  onEdit,
-  onBack,
-}) => {
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('es-ES', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
+const ClientDetails: React.FC<{
+  client: Client | null;
+  sales: Sale[];
+  onClose: () => void;
+  onEdit: (c: Client) => void;
+  onDelete: (c: Client) => void;
+}> = ({ client, sales, onClose, onEdit, onDelete }) => {
+  const navigate = useNavigate();
+  const { isAdmin } = useAuth();
+  const own = client ? sales.filter((s) => s.client.id === client.id) : [];
+  const valid = own.filter((s) => s.status !== 'cancelled');
+  const spent = valid.reduce((sum, s) => sum + s.total, 0);
 
   return (
-    <StyledPaper elevation={2}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h5" sx={{ color: '#303030', fontWeight: 700 }}>
-          Detalles del Cliente
-        </Typography>
-        <StatusChip
-          label={client.status ? 'Activo' : 'Inactivo'}
-          className={client.status ? 'active' : 'inactive'}
-        />
-      </Box>
+    <DetailDrawer
+      open={Boolean(client)}
+      onClose={onClose}
+      title={client?.name || ''}
+      subtitle={client && <StatusChip label={client.status ? 'Activo' : 'Inactivo'} tone={client.status ? 'ok' : 'neutral'} />}
+      actions={
+        client && (
+          <>
+            <Button variant="outlined" startIcon={<EditOutlinedIcon />} onClick={() => onEdit(client)}>
+              Editar
+            </Button>
+            <Button variant="outlined" startIcon={<HistoryIcon />} onClick={() => navigate(`/dashboard/clients/history?client=${client.id}`)}>
+              Ver historial
+            </Button>
+            {isAdmin && (
+              <Button color="error" startIcon={<DeleteOutlineIcon />} onClick={() => onDelete(client)}>
+                Eliminar
+              </Button>
+            )}
+          </>
+        )
+      }
+    >
+      {client && (
+        <>
+          <DetailRow label="Documento">{client.document}</DetailRow>
+          <DetailRow label="Correo">{client.email}</DetailRow>
+          <DetailRow label="Teléfono">{client.phone}</DetailRow>
+          <DetailRow label="Cliente desde">{formatDate(client.createdAt)}</DetailRow>
+          <DetailRow label="Compras">{valid.length}</DetailRow>
+          <DetailRow label="Total comprado">{formatCurrency(spent)}</DetailRow>
 
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <DetailItem>
-            <DetailLabel>Nombre</DetailLabel>
-            <DetailValue>{client.name}</DetailValue>
-          </DetailItem>
-
-          <DetailItem>
-            <DetailLabel>Email</DetailLabel>
-            <DetailValue>{client.email}</DetailValue>
-          </DetailItem>
-
-          <DetailItem>
-            <DetailLabel>Teléfono</DetailLabel>
-            <DetailValue>{client.phone}</DetailValue>
-          </DetailItem>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <DetailItem>
-            <DetailLabel>Última Compra</DetailLabel>
-            <DetailValue>
-              {client.lastPurchase ? formatDate(client.lastPurchase) : 'Sin compras'}
-            </DetailValue>
-          </DetailItem>
-
-          <DetailItem>
-            <DetailLabel>Total de Compras</DetailLabel>
-            <DetailValue>{client.totalPurchases || 0}</DetailValue>
-          </DetailItem>
-
-          <DetailItem>
-            <DetailLabel>Cliente desde</DetailLabel>
-            <DetailValue>{formatDate(client.createdAt)}</DetailValue>
-          </DetailItem>
-        </Grid>
-      </Grid>
-
-      <Divider sx={{ my: 3 }} />
-
-      <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-        <BackButton onClick={onBack}>
-          Volver
-        </BackButton>
-        <EditButton onClick={onEdit}>
-          Editar Cliente
-        </EditButton>
-      </Box>
-    </StyledPaper>
+          <Typography variant="h5" sx={{ mt: 4, mb: 1.5 }}>
+            Últimas compras
+          </Typography>
+          {own.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Este cliente todavía no tiene compras.
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {own.slice(0, 5).map((s) => (
+                <Box
+                  key={s.id}
+                  sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2, p: 1.5, border: '1px solid', borderColor: 'divider', borderRadius: 2 }}
+                >
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                      {s.items.map((i) => i.productName).join(', ')}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {s.number ? `${s.number}, ` : ''}
+                      {formatDate(s.date)}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {formatCurrency(s.total)}
+                    </Typography>
+                    <StatusChip label={saleStatusLabel[s.status]} tone={saleTone[s.status]} />
+                  </Box>
+                </Box>
+              ))}
+            </Stack>
+          )}
+        </>
+      )}
+    </DetailDrawer>
   );
 };
 
-export default ClientDetails; 
+export default ClientDetails;

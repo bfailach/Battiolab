@@ -8,13 +8,10 @@ const clientSchema = new mongoose.Schema({
   },
   document: {
     type: String,
-    // Temporarily make the field not required to debug what's happening
-    required: false, // Changed from true to false
+    required: [true, 'El documento es requerido'],
     trim: true,
     unique: true,
-    default: 'default-document', // Add a default value as a fallback
-    // Ensure value is processed correctly
-    set: v => v ? v.toString() : 'default-document'
+    set: (v) => (v === undefined || v === null ? v : String(v))
   },
   email: {
     type: String,
@@ -38,6 +35,10 @@ const clientSchema = new mongoose.Schema({
     default: null
   },
   totalPurchases: {
+    type: Number,
+    default: 0
+  },
+  totalSpent: {
     type: Number,
     default: 0
   }

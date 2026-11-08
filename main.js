@@ -13,9 +13,14 @@ async function createWindow() {
   const mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 1024,
+    minHeight: 680,
+    backgroundColor: '#221D33',
+    title: 'Battiolab ERP',
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false
+      // La interfaz no usa APIs de Node: se aísla para reducir riesgos
+      nodeIntegration: false,
+      contextIsolation: true
     }
   });
 

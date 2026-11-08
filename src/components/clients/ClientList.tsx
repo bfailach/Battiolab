@@ -1,306 +1,215 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Button, TextField, Typography, Paper, Chip, Modal } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import React, { useMemo, useState } from 'react';
+import { Avatar, Box, Button, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
+import AddIcon from '@mui/icons-material/Add';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import PeopleAltOutlinedIcon from '@mui/icons-material/PeopleAltOutlined';
+import { EmptyState, LoadGate, PageHeader, Surface } from '../shared/Page';
+import DataTable, { Column } from '../shared/DataTable';
+import SearchField from '../shared/SearchField';
+import StatusChip from '../shared/StatusChip';
 import ClientForm from './ClientForm';
 import ClientDetails from './ClientDetails';
+import { computeClientStats, ClientStats } from './clientStats';
 import clientsService, { Client, CreateClientData } from '../../services/clients.service';
+import salesService from '../../services/sales.service';
+import { useLoad } from '../../hooks/useLoad';
+import { useUI } from '../../contexts/UIContext';
+import { formatCurrency, formatDate, initials } from '../../utils/format';
+import { downloadCsv } from '../../utils/csv';
+import { brand } from '../../theme';
 
-const SearchBar = styled(TextField)({
-  '& .MuiOutlinedInput-root': {
-    backgroundColor: 'white',
-    borderRadius: 3,
-    '& fieldset': {
-      borderColor: '#E0E0E0',
+type Filter = 'all' | 'active' | 'inactive';
+
+const ClientList: React.FC = () => {
+  const { notify, confirm } = useUI();
+  const state = useLoad(async () => {
+    const [clients, sales] = await Promise.all([clientsService.getAll(), salesService.getAll()]);
+    return { clients, sales };
+  });
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<Filter>('all');
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Client | null>(null);
+  const [selected, setSelected] = useState<Client | null>(null);
+
+  const stats = useMemo(() => computeClientStats(state.data?.sales || []), [state.data]);
+
+  const rows = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return (state.data?.clients || []).filter((c) => {
+      if (filter === 'active' && !c.status) return false;
+      if (filter === 'inactive' && c.status) return false;
+      return !q || [c.name, c.email, c.document, c.phone].some((v) => v?.toLowerCase().includes(q));
+    });
+  }, [state.data, search, filter]);
+
+  const st = (c: Client): ClientStats | undefined => stats.get(c.id);
+
+  const columns: Column<Client>[] = [
+    {
+      key: 'name',
+      label: 'Cliente',
+      sortValue: (c) => c.name,
+      render: (c) => (
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+          <Avatar sx={{ width: 34, height: 34, fontSize: 13, fontWeight: 700, bgcolor: c.status ? brand.violet : 'action.disabled' }}>
+            {initials(c.name)}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+              {c.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" noWrap component="div">
+              {c.email}
+            </Typography>
+          </Box>
+        </Box>
+      )
     },
-    '&:hover fieldset': {
-      borderColor: '#C95792',
+    { key: 'document', label: 'Documento', sortValue: (c) => c.document, render: (c) => c.document, hideBelow: 'md' },
+    { key: 'phone', label: 'Teléfono', render: (c) => c.phone, hideBelow: 'lg' },
+    { key: 'count', label: 'Compras', align: 'right', sortValue: (c) => st(c)?.count || 0, render: (c) => st(c)?.count || 0 },
+    {
+      key: 'spent',
+      label: 'Total comprado',
+      align: 'right',
+      sortValue: (c) => st(c)?.spent || 0,
+      render: (c) => formatCurrency(st(c)?.spent || 0)
     },
-    '&.Mui-focused fieldset': {
-      borderColor: '#C95792',
+    {
+      key: 'last',
+      label: 'Última compra',
+      sortValue: (c) => st(c)?.last || '',
+      render: (c) => formatDate(st(c)?.last),
+      hideBelow: 'md'
     },
-  },
-});
+    {
+      key: 'status',
+      label: 'Estado',
+      render: (c) => <StatusChip label={c.status ? 'Activo' : 'Inactivo'} tone={c.status ? 'ok' : 'neutral'} />
+    }
+  ];
 
-const ActionButton = styled(Button)({
-  textTransform: 'none',
-  borderRadius: 3,
-  padding: '8px 16px',
-  fontWeight: 700,
-});
+  const save = async (data: CreateClientData) => {
+    if (editing) {
+      const updated = await clientsService.update(editing.id, data);
+      notify('Cliente actualizado');
+      if (selected?.id === updated.id) setSelected(updated);
+    } else {
+      await clientsService.create(data);
+      notify('Cliente creado');
+    }
+    setFormOpen(false);
+    setEditing(null);
+    state.reload();
+  };
 
-const AddButton = styled(ActionButton)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const ClientCard = styled(Paper)({
-  backgroundColor: '#F8B55F',
-  borderRadius: 3,
-  padding: '16px',
-  display: 'flex',
-  flexDirection: 'column',
-  gap: '8px',
-});
-
-const StatusChip = styled(Chip)({
-  borderRadius: 3,
-  fontWeight: 700,
-  '&.active': {
-    backgroundColor: '#4CAF50',
-    color: 'white',
-  },
-  '&.inactive': {
-    backgroundColor: '#FF5252',
-    color: 'white',
-  },
-});
-
-const ModalContent = styled(Box)({
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: '90%',
-  maxWidth: '800px',
-  maxHeight: '90vh',
-  overflow: 'auto',
-  outline: 'none',
-});
-
-const ClientList = () => {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  
-  // Estados para modales
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    loadClients();
-  }, []);
-
-  const loadClients = async () => {
+  const remove = async (c: Client) => {
+    const ok = await confirm({
+      title: `¿Eliminar a ${c.name}?`,
+      message: 'Sus ventas se conservan, pero dejarán de estar vinculadas a un cliente existente.',
+      confirmLabel: 'Eliminar cliente',
+      destructive: true
+    });
+    if (!ok) return;
     try {
-      setIsLoading(true);
-      const data = await clientsService.getAll();
-      setClients(data);
-      setError(null);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
+      await clientsService.delete(c.id);
+      notify('Cliente eliminado');
+      setSelected(null);
+      state.reload();
+    } catch (e) {
+      notify((e as Error).message, 'error');
     }
   };
 
-  const handleCreateClient = async (data: CreateClientData) => {
-    try {
-      // Ensure document is explicitly provided as a string
-      const processedData = {
-        ...data,
-        document: String(data.document).trim()
-      };
-      
-      console.log('ClientList - Processed data before API call:', processedData);
-      
-      await clientsService.create(processedData);
-      await loadClients();
-      setIsFormOpen(false);
-      setError(null); // Clear any previous errors
-    } catch (err: any) {
-      console.error('Error creating client:', err);
-      // Extract the actual error message
-      const errorMessage = err.response?.data?.error || err.message || 'Error al crear el cliente';
-      setError(errorMessage);
-    }
-  };
-
-  const handleUpdateClient = async (data: CreateClientData) => {
-    if (!selectedClient) return;
-    try {
-      // Usar _id en lugar de id para la actualización
-      await clientsService.update(selectedClient._id, data);
-      await loadClients();
-      setIsFormOpen(false);
-      setSelectedClient(null);
-      setIsEditing(false);
-    } catch (err: any) {
-      setError(err.message);
-    }
-  };
-
-  const handleViewDetails = (client: Client) => {
-    setSelectedClient(client);
-    setIsDetailsOpen(true);
-  };
-
-  const handleEditClick = (client: Client) => {
-    setSelectedClient(client);
-    setIsEditing(true);
-    setIsFormOpen(true);
-  };
-
-  const handleCloseForm = () => {
-    setIsFormOpen(false);
-    setSelectedClient(null);
-    setIsEditing(false);
-  };
-
-  const handleCloseDetails = () => {
-    setIsDetailsOpen(false);
-    setSelectedClient(null);
-  };
-
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    client.phone.includes(searchTerm)
-  );
-
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-ES');
-  };
+  const exportCsv = () =>
+    downloadCsv(
+      'clientes-battiolab.csv',
+      ['Nombre', 'Documento', 'Correo', 'Teléfono', 'Estado', 'Compras', 'Total comprado', 'Última compra'],
+      rows.map((c) => [c.name, c.document, c.email, c.phone, c.status ? 'Activo' : 'Inactivo', st(c)?.count || 0, st(c)?.spent || 0, st(c)?.last?.slice(0, 10) || ''])
+    );
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" sx={{ mb: 4, color: '#303030', fontWeight: 700 }}>
-        Listado de Clientes
-      </Typography>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-        <SearchBar
-          placeholder="Buscar cliente"
-          variant="outlined"
-          fullWidth
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ maxWidth: 400 }}
-        />
-        <ActionButton>Filtros</ActionButton>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 2, mb: 4 }}>
-        <AddButton onClick={() => setIsFormOpen(true)}>
-          Agregar Cliente
-        </AddButton>
-      </Box>
-
-      {error && (
-        <Typography color="error" sx={{ mb: 2 }}>
-          {error}
-        </Typography>
-      )}
-
-      <Box sx={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
-        gap: 3 
-      }}>
-        {filteredClients.map(client => (
-          <ClientCard key={client._id} elevation={2}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {client.name}
-              </Typography>
-              <StatusChip
-                label={client.status ? 'Activo' : 'Inactivo'}
-                className={client.status ? 'active' : 'inactive'}
-              />
-            </Box>
-            
-            <Typography variant="body2" sx={{ color: '#666' }}>
-              {client.email}
-            </Typography>
-            <Typography variant="body2" sx={{ color: '#666' }}>
-              {client.phone}
-            </Typography>
-            
-            <Box sx={{ mt: 1 }}>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Última compra: {formatDate(client.lastPurchase)}
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#666' }}>
-                Total compras: {client.totalPurchases || 0}
-              </Typography>
-            </Box>
-
-            <Box sx={{ 
-              display: 'flex', 
-              gap: 1, 
-              mt: 2 
-            }}>
-              <Button 
-                variant="contained" 
-                fullWidth
-                onClick={() => handleViewDetails(client)}
-                sx={{ 
-                  backgroundColor: '#3D365C',
-                  '&:hover': {
-                    backgroundColor: '#2D284C',
-                  }
-                }}
-              >
-                Ver Detalles
-              </Button>
-              <Button 
-                variant="contained" 
-                fullWidth
-                onClick={() => handleEditClick(client)}
-                sx={{ 
-                  backgroundColor: '#C95792',
-                  '&:hover': {
-                    backgroundColor: '#B94B82',
-                  }
-                }}
-              >
-                Editar
-              </Button>
-            </Box>
-          </ClientCard>
-        ))}
-      </Box>
-
-      {/* Modal para el formulario */}
-      <Modal
-        open={isFormOpen}
-        onClose={handleCloseForm}
-      >
-        <ModalContent>
-          <ClientForm
-            initialData={selectedClient || undefined}
-            onSubmit={isEditing ? handleUpdateClient : handleCreateClient}
-            onCancel={handleCloseForm}
-            isEditing={isEditing}
-          />
-        </ModalContent>
-      </Modal>
-
-      {/* Modal para los detalles */}
-      <Modal
-        open={isDetailsOpen}
-        onClose={handleCloseDetails}
-      >
-        <ModalContent>
-          {selectedClient && (
-            <ClientDetails
-              client={selectedClient}
-              onEdit={() => {
-                handleCloseDetails();
-                handleEditClick(selectedClient);
+    <>
+      <PageHeader
+        title="Clientes"
+        description="Personas y empresas que compran o llevan sus vehículos al taller."
+        actions={
+          <>
+            <Button variant="outlined" startIcon={<FileDownloadOutlinedIcon />} onClick={exportCsv} disabled={!rows.length}>
+              Exportar CSV
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setEditing(null);
+                setFormOpen(true);
               }}
-              onBack={handleCloseDetails}
+            >
+              Nuevo cliente
+            </Button>
+          </>
+        }
+      />
+      <LoadGate state={state}>
+        {(data) => (
+          <Surface padding={0}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} sx={{ p: 2, alignItems: { sm: 'center' } }}>
+              <SearchField value={search} onChange={setSearch} placeholder="Buscar por nombre, correo o documento" />
+              <ToggleButtonGroup size="small" exclusive value={filter} onChange={(_, v) => v && setFilter(v)} aria-label="Filtrar por estado">
+                <ToggleButton value="all">Todos ({data.clients.length})</ToggleButton>
+                <ToggleButton value="active">Activos</ToggleButton>
+                <ToggleButton value="inactive">Inactivos</ToggleButton>
+              </ToggleButtonGroup>
+            </Stack>
+            <DataTable
+              rows={rows}
+              columns={columns}
+              rowKey={(c) => c.id}
+              onRowClick={setSelected}
+              initialSort={{ key: 'name', dir: 'asc' }}
+              empty={
+                data.clients.length === 0 ? (
+                  <EmptyState
+                    icon={<PeopleAltOutlinedIcon />}
+                    title="Todavía no hay clientes"
+                    text="Registra tu primer cliente para asociarle ventas y ver su historial."
+                    action={
+                      <Button variant="contained" startIcon={<AddIcon />} onClick={() => setFormOpen(true)}>
+                        Nuevo cliente
+                      </Button>
+                    }
+                  />
+                ) : (
+                  <EmptyState title="Ningún cliente coincide" text="Prueba con otro término o quita el filtro de estado." />
+                )
+              }
             />
-          )}
-        </ModalContent>
-      </Modal>
-    </Box>
+          </Surface>
+        )}
+      </LoadGate>
+
+      <ClientForm
+        open={formOpen}
+        client={editing}
+        onClose={() => {
+          setFormOpen(false);
+          setEditing(null);
+        }}
+        onSubmit={save}
+      />
+      <ClientDetails
+        client={selected}
+        sales={state.data?.sales || []}
+        onClose={() => setSelected(null)}
+        onEdit={(c) => {
+          setEditing(c);
+          setFormOpen(true);
+        }}
+        onDelete={remove}
+      />
+    </>
   );
 };
 

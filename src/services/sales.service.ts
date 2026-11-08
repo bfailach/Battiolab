@@ -1,5 +1,6 @@
-import axios from 'axios';
-import { API_BASE_URL } from '../config';
+import http from '../api/http';
+
+export type SaleStatus = 'completed' | 'pending' | 'cancelled';
 
 export interface SaleItem {
   productId: string;
@@ -11,57 +12,44 @@ export interface SaleItem {
 
 export interface Sale {
   id: string;
-  _id?: string; // Adding _id as optional for backend compatibility
-  client: {
-    id: string;
-    name: string;
-  };
+  number?: string | null;
+  client: { id: string | null; name: string; email?: string; phone?: string };
   items: SaleItem[];
+  subtotal: number;
+  taxRate: number;
+  taxAmount: number;
   total: number;
-  status: 'completed' | 'pending' | 'cancelled';
+  paymentMethod?: string | null;
+  notes?: string;
+  status: SaleStatus;
   date: string;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface CreateSaleData {
-  client: {
-    id: string;
-    name: string;
-  };
-  items: {
-    productId: string;
-    quantity: number;
-    price: number;
-    subtotal: number;
-  }[];
-  total: number;
-  status: 'completed' | 'pending' | 'cancelled';
+  client: { id: string };
+  items: { productId: string; quantity: number; price?: number }[];
+  status: SaleStatus;
+  paymentMethod?: string;
+  notes?: string;
+  taxRate?: number;
 }
 
+export const saleStatusLabel: Record<SaleStatus, string> = {
+  completed: 'Completada',
+  pending: 'Pendiente',
+  cancelled: 'Anulada'
+};
+
 const salesService = {
-  getAll: async (): Promise<Sale[]> => {
-    const response = await axios.get(`${API_BASE_URL}/sales`);
-    return response.data;
-  },
-
-  getById: async (id: string): Promise<Sale> => {
-    const response = await axios.get(`${API_BASE_URL}/sales/${id}`);
-    return response.data;
-  },
-
-  create: async (data: CreateSaleData): Promise<Sale> => {
-    const response = await axios.post(`${API_BASE_URL}/sales`, data);
-    return response.data;
-  },
-
-  update: async (id: string, data: Partial<CreateSaleData>): Promise<Sale> => {
-    const response = await axios.put(`${API_BASE_URL}/sales/${id}`, data);
-    return response.data;
-  },
-
+  getAll: async (params?: { clientId?: string; status?: SaleStatus }): Promise<Sale[]> =>
+    (await http.get('/sales', { params })).data,
+  getById: async (id: string): Promise<Sale> => (await http.get(`/sales/${id}`)).data,
+  create: async (data: CreateSaleData): Promise<Sale> => (await http.post('/sales', data)).data,
+  update: async (id: string, data: Partial<CreateSaleData>): Promise<Sale> => (await http.put(`/sales/${id}`, data)).data,
   delete: async (id: string): Promise<void> => {
-    await axios.delete(`${API_BASE_URL}/sales/${id}`);
+    await http.delete(`/sales/${id}`);
   }
 };
 

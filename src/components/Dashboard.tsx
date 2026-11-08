@@ -1,482 +1,282 @@
-import React, { useState, useEffect } from 'react';
-import {
-  Box,
-  Typography,
-  Grid,
-  Card,
-  CardContent,
-  CardHeader,
-  Divider,
-  CircularProgress,
-  Alert,
-  Paper,
-  List,
-  ListItem,
-  ListItemText,
-  Avatar,
-  Chip,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { Link, Routes, Route } from 'react-router-dom';
-import Navbar from './navigation/Navbar';
-import ClientsPage from './clients/ClientsPage';
-import EmployeesPage from './employees/EmployeesPage';
-import InventoryPage from './inventory/InventoryPage';
-import SalesPage from './sales/SalesPage';
-import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
-import BusinessCenterIcon from '@mui/icons-material/BusinessCenter';
-import InventoryIcon from '@mui/icons-material/Inventory';
-import PointOfSaleIcon from '@mui/icons-material/PointOfSale';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
-
-// Servicios
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Box, Button, Link, Stack, Typography } from '@mui/material';
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { LoadGate, PageHeader, StatStrip, Surface } from './shared/Page';
+import ChargeMeter, { StockMeter, stockLevel } from './shared/ChargeMeter';
+import StatusChip, { saleTone } from './shared/StatusChip';
+import { useChartStyle } from './shared/charts';
 import clientsService from '../services/clients.service';
 import employeesService from '../services/employees.service';
 import productsService from '../services/products.service';
-import salesService, { Sale } from '../services/sales.service';
+import salesService, { saleStatusLabel } from '../services/sales.service';
+import settingsService from '../services/settings.service';
+import { useLoad } from '../hooks/useLoad';
+import { useAuth } from '../contexts/AuthContext';
+import { formatCompactCurrency, formatCurrency, monthKey } from '../utils/format';
+import { brand } from '../theme';
 
-// Estilos personalizados
-const DashboardCard = styled(Card)(({ theme }) => ({
-  height: '100%',
-  display: 'flex',
-  flexDirection: 'column',
-  transition: 'transform 0.3s ease',
-  '&:hover': {
-    transform: 'translateY(-5px)',
-    boxShadow: '0 5px 15px rgba(0,0,0,0.1)'
-  }
-}));
-
-const ModuleButton = styled(Button)(({ theme }) => ({
-  backgroundColor: '#3D365C',
-  color: '#fff',
-  '&:hover': {
-    backgroundColor: '#2C284C',
-  }
-}));
-
-const StatCard = styled(Card)(({ theme }) => ({
-  backgroundColor: 'white',
-  boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-  borderRadius: '8px',
-}));
-
-const StatNumber = styled(Typography)({
-  fontSize: '2rem',
-  fontWeight: 700,
-  color: '#3D365C',
-});
-
-// Función para formatear moneda
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('es-CO', {
-    style: 'currency',
-    currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
+const greeting = () => {
+  const h = new Date().getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 };
 
 const Dashboard: React.FC = () => {
-  // Estados para datos
-  const [clientsCount, setClientsCount] = useState<number>(0);
-  const [employeesCount, setEmployeesCount] = useState<number>(0);
-  const [productsCount, setProductsCount] = useState<number>(0);
-  const [lowStockCount, setLowStockCount] = useState<number>(0);
-  const [sales, setSales] = useState<Sale[]>([]);
-  const [recentSales, setRecentSales] = useState<Sale[]>([]);
-  const [topProducts, setTopProducts] = useState<{name: string, quantity: number}[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
+  const chart = useChartStyle();
+  const { user } = useAuth();
+  const state = useLoad(async () => {
+    const [clients, employees, products, sales, inv] = await Promise.all([
+      clientsService.getAll(),
+      employeesService.getAll(),
+      productsService.getAll(),
+      salesService.getAll(),
+      settingsService.get('inventory').catch(() => ({ lowStockThreshold: 5, categories: [] }))
+    ]);
+    return { clients, employees, products, sales, threshold: inv.lowStockThreshold };
+  });
 
-  // Cargar datos
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        
-        // Cargar datos de todos los servicios en paralelo
-        const [clientsData, employeesData, productsData, salesData] = await Promise.all([
-          clientsService.getAll(),
-          employeesService.getAll(),
-          productsService.getAll(),
-          salesService.getAll()
-        ]);
+  const d = useMemo(() => {
+    if (!state.data) return null;
+    const { sales, products, threshold, clients, employees } = state.data;
+    const valid = sales.filter((s) => s.status !== 'cancelled');
+    const now = new Date();
+    const thisM = monthKey(now);
+    const prevM = monthKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+    const today = now.toDateString();
+    const month = valid.filter((s) => monthKey(s.date) === thisM);
+    const prev = valid.filter((s) => monthKey(s.date) === prevM);
+    const monthRevenue = month.reduce((t, s) => t + s.total, 0);
+    const prevRevenue = prev.reduce((t, s) => t + s.total, 0);
+    const todayRevenue = valid.filter((s) => new Date(s.date).toDateString() === today).reduce((t, s) => t + s.total, 0);
+    const pending = sales.filter((s) => s.status === 'pending');
 
-        // Actualizar contadores
-        setClientsCount(clientsData.length);
-        setEmployeesCount(employeesData.length);
-        setProductsCount(productsData.length);
-        
-        // Calcular productos con bajo stock (menos de 10 unidades)
-        const lowStock = productsData.filter((product: any) => 
-          product.stock && product.stock < 10
-        ).length;
-        setLowStockCount(lowStock);
-        
-        // Procesamiento de ventas
-        setSales(salesData);
-        
-        // Ventas recientes (últimas 5)
-        const sortedSales = [...salesData].sort(
-          (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-        );
-        setRecentSales(sortedSales.slice(0, 5));
-        
-        // Productos más vendidos
-        const productMap = new Map<string, {name: string, quantity: number}>();
-        
-        salesData.forEach((sale: Sale) => {
-          sale.items.forEach(item => {
-            const productName = item.productName || `Producto ${item.productId}`;
-            
-            if (!productMap.has(item.productId)) {
-              productMap.set(item.productId, {
-                name: productName,
-                quantity: 0
-              });
-            }
-            
-            const product = productMap.get(item.productId)!;
-            product.quantity += item.quantity;
-          });
-        });
-        
-        // Convertir a array y ordenar por cantidad
-        const topProductsArray = Array.from(productMap.values())
-          .sort((a, b) => b.quantity - a.quantity)
-          .slice(0, 5);
-          
-        setTopProducts(topProductsArray);
-        
-      } catch (err: any) {
-        setError(err.message || 'Error al cargar datos del dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchDashboardData();
-  }, []);
-
-  // Calcular métricas de ventas
-  const calculateSalesMetrics = () => {
-    if (sales.length === 0) {
+    const days = Array.from({ length: 14 }, (_, i) => {
+      const day = new Date(now.getTime() - (13 - i) * 86400000);
+      const key = day.toDateString();
       return {
-        totalSales: 0,
-        totalRevenue: 0,
-        averageTicket: 0,
-        pendingSales: 0
+        label: day.toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }),
+        ingresos: valid.filter((s) => new Date(s.date).toDateString() === key).reduce((t, s) => t + s.total, 0)
       };
-    }
+    });
 
-    const totalSales = sales.length;
-    const totalRevenue = sales.reduce((sum, sale) => sum + sale.total, 0);
-    const averageTicket = totalRevenue / totalSales;
-    const pendingSales = sales.filter(sale => sale.status === 'pending').length;
+    const active = products.filter((p) => p.status !== 'discontinued');
+    const healthy = active.filter((p) => stockLevel(p.stock, p.minStock, threshold) === 'ok');
+    const alerts = active
+      .filter((p) => stockLevel(p.stock, p.minStock, threshold) !== 'ok')
+      .sort((a, b) => a.stock - b.stock);
+
+    const top = new Map<string, { name: string; units: number }>();
+    month.forEach((s) =>
+      s.items.forEach((i) => {
+        const t = top.get(i.productId) || { name: i.productName || 'Producto', units: 0 };
+        t.units += i.quantity;
+        top.set(i.productId, t);
+      })
+    );
 
     return {
-      totalSales,
-      totalRevenue,
-      averageTicket,
-      pendingSales
+      monthRevenue,
+      change: prevRevenue ? (monthRevenue - prevRevenue) / prevRevenue : null,
+      todayRevenue,
+      monthCount: month.length,
+      pending,
+      days,
+      health: active.length ? healthy.length / active.length : 1,
+      activeCount: active.length,
+      alerts,
+      threshold,
+      recent: sales.slice(0, 6),
+      top: [...top.values()].sort((a, b) => b.units - a.units).slice(0, 5),
+      clients: clients.filter((c) => c.status).length,
+      employees: employees.filter((e) => e.status).length
     };
-  };
+  }, [state.data]);
 
-  const salesMetrics = calculateSalesMetrics();
+  const name = user?.user.name || user?.user.email.split('@')[0] || '';
+  const healthLevel = !d ? 'ok' : d.health >= 0.8 ? 'ok' : d.health >= 0.5 ? 'low' : 'empty';
 
   return (
-    <Box>
-      <Navbar />
-      
-      <Routes>
-        <Route path="/" element={
-          <Box sx={{ p: 3 }}>
-            <Typography variant="h4" sx={{ mb: 4, color: '#303030', fontWeight: 700 }}>
-              Dashboard
-            </Typography>
+    <>
+      <PageHeader
+        title={`${greeting()}, ${name}`}
+        description={new Date().toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      />
+      <LoadGate state={state}>
+        {() =>
+          d && (
+            <>
+              <StatStrip
+                stats={[
+                  {
+                    label: 'Ingresos del mes',
+                    value: formatCurrency(d.monthRevenue),
+                    hint:
+                      d.change === null
+                        ? 'Sin datos del mes anterior'
+                        : `${d.change >= 0 ? '+' : ''}${Math.round(d.change * 100)} % frente al mes anterior`
+                  },
+                  { label: 'Vendido hoy', value: formatCurrency(d.todayRevenue) },
+                  { label: 'Ventas del mes', value: d.monthCount, hint: `${d.clients} clientes activos` },
+                  {
+                    label: 'Pendientes de cobro',
+                    value: formatCurrency(d.pending.reduce((t, s) => t + s.total, 0)),
+                    hint: `${d.pending.length} ventas`
+                  }
+                ]}
+              />
 
-            {error && (
-              <Alert severity="error" sx={{ mb: 3 }}>
-                {error}
-              </Alert>
-            )}
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3, mb: 3 }}>
+                <Surface title="Ingresos de los últimos 14 días">
+                  <Box sx={{ height: 260 }}>
+                    <ResponsiveContainer>
+                      <BarChart data={d.days} margin={{ left: 0, right: 8 }}>
+                        <CartesianGrid vertical={false} stroke={chart.grid} />
+                        <XAxis dataKey="label" tick={chart.axis} tickLine={false} axisLine={false} minTickGap={16} />
+                        <YAxis tickFormatter={formatCompactCurrency} tick={chart.axis} tickLine={false} axisLine={false} width={60} />
+                        <Tooltip {...chart.tooltip} formatter={(v: number) => formatCurrency(v)} />
+                        <Bar isAnimationActive={false} dataKey="ingresos" name="Ingresos" fill={chart.colors[0]} radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </Box>
+                </Surface>
 
-            {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-                <CircularProgress />
+                <Surface
+                  title="Carga del inventario"
+                  subtitle={`${d.activeCount} productos activos`}
+                  action={
+                    <Button size="small" onClick={() => navigate('/dashboard/inventory/alerts')}>
+                      Ver alertas
+                    </Button>
+                  }
+                >
+                  <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1 }}>
+                    <Typography variant="h1" component="p">
+                      {Math.round(d.health * 100)} %
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      con stock suficiente
+                    </Typography>
+                  </Box>
+                  <Box sx={{ my: 2 }}>
+                    <ChargeMeter value={d.health} level={healthLevel} segments={12} width={300} height={26} />
+                  </Box>
+                  {d.alerts.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Ningún producto en alerta.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1.25}>
+                      {d.alerts.slice(0, 4).map((p) => (
+                        <Box key={p.id} sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 2 }}>
+                          <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+                            {p.name}
+                          </Typography>
+                          <StockMeter stock={p.stock} minStock={p.minStock} threshold={d.threshold} width={60} />
+                        </Box>
+                      ))}
+                      {d.alerts.length > 4 && (
+                        <Typography variant="caption" color="text.secondary">
+                          Y {d.alerts.length - 4} más.
+                        </Typography>
+                      )}
+                    </Stack>
+                  )}
+                </Surface>
               </Box>
-            ) : (
-              <Box>
-                {/* Sección 1: Tarjetas de contadores principales */}
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                  <Grid item xs={12} sm={6} md={3}>
-                    <StatCard>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Avatar sx={{ bgcolor: '#3D365C', mr: 1 }}>
-                            <PeopleAltIcon />
-                          </Avatar>
-                          <Typography variant="body2" color="text.secondary">
-                            Clientes
+
+              <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 380px' }, gap: 3 }}>
+                <Surface
+                  title="Ventas recientes"
+                  padding={0}
+                  action={
+                    <Button size="small" onClick={() => navigate('/dashboard/sales/list')}>
+                      Ver todas
+                    </Button>
+                  }
+                >
+                  {d.recent.length === 0 ? (
+                    <Box sx={{ p: 2.5 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        Todavía no hay ventas.{' '}
+                        <Link component="button" onClick={() => navigate('/dashboard/sales/new')} sx={{ verticalAlign: 'baseline' }}>
+                          Registra la primera
+                        </Link>
+                        .
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <Box>
+                      {d.recent.map((s) => (
+                        <Box
+                          key={s.id}
+                          sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr auto', sm: '64px 1fr auto auto' },
+                            gap: 2,
+                            alignItems: 'center',
+                            px: 2.5,
+                            py: 1.5,
+                            borderTop: '1px solid',
+                            borderColor: 'divider'
+                          }}
+                        >
+                          <Typography variant="body2" color="text.secondary" sx={{ display: { xs: 'none', sm: 'block' } }}>
+                            {new Date(s.date).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
                           </Typography>
-                        </Box>
-                        <StatNumber>{clientsCount}</StatNumber>
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                          <Link to="/dashboard/clients" style={{ textDecoration: 'none' }}>
-                            <Button size="small">Ver más</Button>
-                          </Link>
-                        </Box>
-                      </CardContent>
-                    </StatCard>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6} md={3}>
-                    <StatCard>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Avatar sx={{ bgcolor: '#3D365C', mr: 1 }}>
-                            <BusinessCenterIcon />
-                          </Avatar>
-                          <Typography variant="body2" color="text.secondary">
-                            Empleados
-                          </Typography>
-                        </Box>
-                        <StatNumber>{employeesCount}</StatNumber>
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                          <Link to="/dashboard/employees" style={{ textDecoration: 'none' }}>
-                            <Button size="small">Ver más</Button>
-                          </Link>
-                        </Box>
-                      </CardContent>
-                    </StatCard>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6} md={3}>
-                    <StatCard>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Avatar sx={{ bgcolor: '#3D365C', mr: 1 }}>
-                            <PointOfSaleIcon />
-                          </Avatar>
-                          <Typography variant="body2" color="text.secondary">
-                            Ventas Totales
-                          </Typography>
-                        </Box>
-                        <StatNumber>{salesMetrics.totalSales}</StatNumber>
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 1 }}>
-                          <Link to="/dashboard/sales" style={{ textDecoration: 'none' }}>
-                            <Button size="small">Ver más</Button>
-                          </Link>
-                        </Box>
-                      </CardContent>
-                    </StatCard>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6} md={3}>
-                    <StatCard>
-                      <CardContent>
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                          <Avatar sx={{ bgcolor: '#3D365C', mr: 1 }}>
-                            <InventoryIcon />
-                          </Avatar>
-                          <Typography variant="body2" color="text.secondary">
-                            Productos
-                          </Typography>
-                        </Box>
-                        <StatNumber>{productsCount}</StatNumber>
-                        {lowStockCount > 0 && (
-                          <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
-                            <Chip 
-                              size="small" 
-                              color="warning" 
-                              label={`${lowStockCount} con bajo stock`} 
-                            />
-                          </Box>
-                        )}
-                      </CardContent>
-                    </StatCard>
-                  </Grid>
-                </Grid>
-
-                {/* Sección 2: Métricas de ventas y productos */}
-                <Grid container spacing={3} sx={{ mb: 4 }}>
-                  <Grid item xs={12} md={6}>
-                    <DashboardCard>
-                      <CardHeader title="Resumen de Ventas" />
-                      <Divider />
-                      <CardContent>
-                        <Grid container spacing={2}>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary">
-                              Ingresos Totales
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                              {s.client.name}
                             </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              {formatCurrency(salesMetrics.totalRevenue)}
-                            </Typography>
-                          </Grid>
-                          <Grid item xs={6}>
-                            <Typography variant="body2" color="text.secondary">
-                              Ticket Promedio
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                              {formatCurrency(salesMetrics.averageTicket)}
-                            </Typography>
-                          </Grid>
-                          {salesMetrics.pendingSales > 0 && (
-                            <Grid item xs={12} sx={{ mt: 1 }}>
-                              <Alert severity="warning" icon={<TrendingDownIcon />}>
-                                {salesMetrics.pendingSales} ventas pendientes
-                              </Alert>
-                            </Grid>
-                          )}
-                        </Grid>
-                        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-                          <Link to="/dashboard/sales/reports" style={{ textDecoration: 'none' }}>
-                            <ModuleButton variant="contained">
-                              Ver Reportes de Ventas
-                            </ModuleButton>
-                          </Link>
-                        </Box>
-                      </CardContent>
-                    </DashboardCard>
-                  </Grid>
-
-                  <Grid item xs={12} md={6}>
-                    <DashboardCard>
-                      <CardHeader title="Productos Más Vendidos" />
-                      <Divider />
-                      <CardContent sx={{ pb: 0 }}>
-                        <List>
-                          {topProducts.map((product, index) => (
-                            <ListItem
-                              key={index}
-                              sx={{ 
-                                py: 1, 
-                                backgroundColor: index % 2 === 0 ? '#f8f8f8' : 'transparent',
-                                borderRadius: '4px'
-                              }}
-                            >
-                              <ListItemText
-                                primary={product.name}
-                                primaryTypographyProps={{ fontWeight: 500 }}
-                              />
-                              <Chip 
-                                size="small" 
-                                color="primary" 
-                                label={`${product.quantity} unidades`}
-                                sx={{ bgcolor: '#3D365C' }}
-                              />
-                            </ListItem>
-                          ))}
-                          {topProducts.length === 0 && (
-                            <ListItem>
-                              <ListItemText primary="No hay datos de ventas disponibles" />
-                            </ListItem>
-                          )}
-                        </List>
-                      </CardContent>
-                    </DashboardCard>
-                  </Grid>
-                </Grid>
-
-                {/* Sección 3: Ventas Recientes */}
-                <Grid container spacing={3}>
-                  <Grid item xs={12}>
-                    <DashboardCard>
-                      <CardHeader 
-                        title="Ventas Recientes" 
-                        action={
-                          <Link to="/dashboard/sales/list" style={{ textDecoration: 'none' }}>
-                            <Button size="small">Ver Todas</Button>
-                          </Link>
-                        }
-                      />
-                      <Divider />
-                      <TableContainer>
-                        {recentSales.length > 0 ? (
-                          <Table>
-                            <TableHead>
-                              <TableRow>
-                                <TableCell sx={{ fontWeight: 'bold' }}>Cliente</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Monto</TableCell>
-                                <TableCell align="center" sx={{ fontWeight: 'bold' }}>Estado</TableCell>
-                                <TableCell align="right" sx={{ fontWeight: 'bold' }}>Fecha</TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {recentSales.map((sale) => (
-                                <TableRow key={sale.id} hover>
-                                  <TableCell>{sale.client.name}</TableCell>
-                                  <TableCell align="right">{formatCurrency(sale.total)}</TableCell>
-                                  <TableCell align="center">
-                                    <Chip
-                                      size="small"
-                                      label={
-                                        sale.status === 'completed' ? 'Completada' : 
-                                        sale.status === 'pending' ? 'Pendiente' : 'Cancelada'
-                                      }
-                                      color={
-                                        sale.status === 'completed' ? 'success' :
-                                        sale.status === 'pending' ? 'warning' : 'error'
-                                      }
-                                    />
-                                  </TableCell>
-                                  <TableCell align="right">
-                                    {new Date(sale.date).toLocaleDateString('es-CO')}
-                                  </TableCell>
-                                </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                        ) : (
-                          <Box sx={{ p: 3, textAlign: 'center' }}>
-                            <Typography color="text.secondary">
-                              No hay ventas recientes
+                            <Typography variant="caption" color="text.secondary" component="div" noWrap>
+                              {s.items.map((i) => i.productName).join(', ')}
                             </Typography>
                           </Box>
-                        )}
-                      </TableContainer>
-                    </DashboardCard>
-                  </Grid>
-                </Grid>
-
-                {/* Accesos rápidos a módulos */}
-                <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', gap: 2 }}>
-                  <Link to="/dashboard/sales/new" style={{ textDecoration: 'none' }}>
-                    <ModuleButton variant="contained" startIcon={<PointOfSaleIcon />}>
-                      Nueva Venta
-                    </ModuleButton>
-                  </Link>
-                  <Link to="/dashboard/clients/new" style={{ textDecoration: 'none' }}>
-                    <ModuleButton variant="contained" startIcon={<PeopleAltIcon />}>
-                      Nuevo Cliente
-                    </ModuleButton>
-                  </Link>
-                  <Link to="/dashboard/inventory" style={{ textDecoration: 'none' }}>
-                    <ModuleButton variant="contained" startIcon={<InventoryIcon />}>
-                      Inventario
-                    </ModuleButton>
-                  </Link>
-                </Box>
+                          <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                            <StatusChip label={saleStatusLabel[s.status]} tone={saleTone[s.status]} />
+                          </Box>
+                          <Typography variant="body2" sx={{ fontWeight: 700, textAlign: 'right' }}>
+                            {formatCurrency(s.total)}
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
+                </Surface>
+                <Surface title="Lo más vendido este mes">
+                  {d.top.length === 0 ? (
+                    <Typography variant="body2" color="text.secondary">
+                      Sin ventas este mes.
+                    </Typography>
+                  ) : (
+                    <Stack spacing={1.5}>
+                      {d.top.map((t, i) => (
+                        <Box key={t.name} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                          <Box
+                            sx={{
+                              width: 6,
+                              alignSelf: 'stretch',
+                              borderRadius: 1,
+                              bgcolor: i === 0 ? brand.charge : 'divider'
+                            }}
+                          />
+                          <Typography variant="body2" sx={{ flex: 1 }}>
+                            {t.name}
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            {t.units} u.
+                          </Typography>
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
+                </Surface>
               </Box>
-            )}
-          </Box>
-        } />
-        <Route path="clients/*" element={<ClientsPage />} />
-        <Route path="employees/*" element={<EmployeesPage />} />
-        <Route path="inventory/*" element={<InventoryPage />} />
-        <Route path="sales/*" element={<SalesPage />} />
-      </Routes>
-    </Box>
+            </>
+          )
+        }
+      </LoadGate>
+    </>
   );
 };
 

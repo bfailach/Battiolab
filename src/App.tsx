@@ -1,66 +1,54 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
+import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { UIProvider } from './contexts/UIContext';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
-import Dashboard from './components/Dashboard';
-import LandingPage from './components/auth/LandingPage';
-import TestClientForm from './components/clients/TestClientForm';
+import AppShell from './components/layout/AppShell';
+import Home from './components/Dashboard';
+import ClientsPage from './components/clients/ClientsPage';
+import EmployeesPage from './components/employees/EmployeesPage';
+import InventoryPage from './components/inventory/InventoryPage';
+import SalesPage from './components/sales/SalesPage';
+import { Loading } from './components/shared/Page';
 
-const theme = createTheme({
-  typography: {
-    fontFamily: 'Niramit Bold, sans-serif',
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: `
-        @font-face {
-          font-family: 'Niramit Bold';
-          font-style: normal;
-          font-weight: 700;
-          src: url('/fonts/Niramit-Bold.ttf') format('truetype');
-        }
-      `,
-    },
-  },
-});
-
-const PrivateRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const PrivateArea: React.FC = () => {
   const { user, loading } = useAuth();
-
-  if (loading) {
-    return <div>Cargando...</div>;
-  }
-
-  return user ? <>{children}</> : <Navigate to="/" />;
-};
-
-const App = () => {
+  if (loading) return <Loading label="Verificando tu sesión…" />;
+  if (!user) return <Navigate to="/login" replace />;
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <AuthProvider>
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/test-client" element={<TestClientForm />} />
-            <Route
-              path="/dashboard/*"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </AuthProvider>
-      </Router>
-    </ThemeProvider>
+    <AppShell>
+      <Routes>
+        <Route index element={<Home />} />
+        <Route path="clients/*" element={<ClientsPage />} />
+        <Route path="employees/*" element={<EmployeesPage />} />
+        <Route path="inventory/*" element={<InventoryPage />} />
+        <Route path="sales/*" element={<SalesPage />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      </Routes>
+    </AppShell>
   );
 };
+
+const PublicOnly: React.FC<{ children: React.ReactElement }> = ({ children }) => {
+  const { user } = useAuth();
+  return user ? <Navigate to="/dashboard" replace /> : children;
+};
+
+const App = () => (
+  <UIProvider>
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/login" element={<PublicOnly><Login /></PublicOnly>} />
+          <Route path="/register" element={<PublicOnly><Register /></PublicOnly>} />
+          <Route path="/dashboard/*" element={<PrivateArea />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </AuthProvider>
+    </Router>
+  </UIProvider>
+);
 
 export default App;

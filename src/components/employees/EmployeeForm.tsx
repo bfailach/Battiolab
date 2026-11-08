@@ -1,276 +1,145 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  TextField,
-  Button,
-  Typography,
-  Paper,
-  FormControlLabel,
-  Switch,
-  Alert,
-  InputAdornment
-} from '@mui/material';
-import { styled } from '@mui/material/styles';
-import { Employee, CreateEmployeeData } from '../../services/employees.service';
+import React, { useEffect, useState } from 'react';
+import { Autocomplete, FormControlLabel, Grid, InputAdornment, Switch, TextField } from '@mui/material';
+import FormDialog from '../shared/FormDialog';
+import { CreateEmployeeData, Employee } from '../../services/employees.service';
+import { toInputDate } from '../../utils/format';
 
-interface EmployeeFormProps {
-  initialData?: Employee;
+const empty = (): CreateEmployeeData => ({
+  name: '',
+  email: '',
+  phone: '',
+  position: '',
+  department: '',
+  status: true,
+  hireDate: toInputDate(new Date()),
+  salary: 0
+});
+
+const EmployeeForm: React.FC<{
+  open: boolean;
+  employee?: Employee | null;
+  departments: string[];
+  positions: string[];
+  onClose: () => void;
   onSubmit: (data: CreateEmployeeData) => Promise<void>;
-  onCancel: () => void;
-  isEditing?: boolean;
-}
+}> = ({ open, employee, departments, positions, onClose, onSubmit }) => {
+  const [form, setForm] = useState<CreateEmployeeData>(empty());
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-interface EmployeeFormErrors {
-  name?: string;
-  email?: string;
-  phone?: string;
-  position?: string;
-  department?: string;
-  status?: string;
-  hireDate?: string;
-  salary?: string;
-}
+  useEffect(() => {
+    if (!open) return;
+    setForm(
+      employee
+        ? {
+            name: employee.name,
+            email: employee.email,
+            phone: employee.phone,
+            position: employee.position,
+            department: employee.department,
+            status: employee.status,
+            hireDate: toInputDate(employee.hireDate),
+            salary: employee.salary
+          }
+        : empty()
+    );
+    setErrors({});
+    setError(null);
+  }, [open, employee]);
 
-const FormContainer = styled(Paper)({
-  padding: '24px',
-  backgroundColor: 'white',
-  borderRadius: 3,
-});
+  const set = (k: keyof CreateEmployeeData) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((f) => ({ ...f, [k]: k === 'salary' ? Number(e.target.value) : e.target.value }));
 
-const SubmitButton = styled(Button)({
-  backgroundColor: '#3D365C',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#2D284C',
-  },
-});
-
-const CancelButton = styled(Button)({
-  backgroundColor: '#C95792',
-  color: 'white',
-  '&:hover': {
-    backgroundColor: '#B94B82',
-  },
-});
-
-const EmployeeForm: React.FC<EmployeeFormProps> = ({
-  initialData,
-  onSubmit,
-  onCancel,
-  isEditing = false,
-}) => {
-  const [formData, setFormData] = useState<CreateEmployeeData>({
-    name: initialData?.name || '',
-    email: initialData?.email || '',
-    phone: initialData?.phone || '',
-    position: initialData?.position || '',
-    department: initialData?.department || '',
-    status: initialData?.status ?? true,
-    hireDate: initialData?.hireDate ? new Date(initialData.hireDate).toISOString().split('T')[0] : '',
-    salary: initialData?.salary || 0,
-  });
-
-  const [errors, setErrors] = useState<EmployeeFormErrors>({});
-  const [submitError, setSubmitError] = useState<string | null>(null);
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('es-CO', {
-      style: 'currency',
-      currency: 'COP',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const validateForm = () => {
-    const newErrors: EmployeeFormErrors = {};
-    
-    if (!formData.name.trim()) {
-      newErrors.name = 'El nombre es requerido';
-    }
-    
-    if (!formData.email.trim()) {
-      newErrors.email = 'El email es requerido';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = 'Email inválido';
-    }
-    
-    if (!formData.phone.trim()) {
-      newErrors.phone = 'El teléfono es requerido';
-    }
-
-    if (!formData.position.trim()) {
-      newErrors.position = 'El cargo es requerido';
-    }
-
-    if (!formData.department.trim()) {
-      newErrors.department = 'El departamento es requerido';
-    }
-
-    if (!formData.hireDate) {
-      newErrors.hireDate = 'La fecha de contratación es requerida';
-    }
-
-    if (formData.salary <= 0) {
-      newErrors.salary = 'El salario debe ser mayor a 0';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSubmitError(null);
-
-    if (validateForm()) {
-      try {
-        await onSubmit(formData);
-      } catch (error: any) {
-        setSubmitError(error.message);
-      }
-    }
-  };
-
-  const handleChange = (field: keyof CreateEmployeeData) => (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    let value: string | number | boolean = e.target.value;
-
-    if (field === 'status') {
-      value = e.target.checked;
-    } else if (field === 'salary') {
-      // Remover formato de moneda y convertir a número
-      value = Number(e.target.value.replace(/[^0-9]/g, ''));
-    } else {
-      value = e.target.value;
-    }
-
-    setFormData({
-      ...formData,
-      [field]: value,
-    });
-
-    if (errors[field]) {
-      setErrors({
-        ...errors,
-        [field]: undefined,
-      });
+  const submit = async () => {
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = 'Escribe el nombre';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Escribe un correo válido';
+    if (!form.phone.trim()) next.phone = 'Escribe el teléfono';
+    if (!form.position.trim()) next.position = 'Elige o escribe un cargo';
+    if (!form.department.trim()) next.department = 'Elige o escribe un departamento';
+    if (!form.hireDate) next.hireDate = 'Indica la fecha';
+    if (!(form.salary >= 0)) next.salary = 'El salario no puede ser negativo';
+    setErrors(next);
+    if (Object.keys(next).length) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit(form);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <FormContainer>
-      <Typography variant="h5" sx={{ mb: 3, color: '#303030', fontWeight: 700 }}>
-        {isEditing ? 'Editar Empleado' : 'Agregar Nuevo Empleado'}
-      </Typography>
-
-      <form onSubmit={handleSubmit}>
-        <Box sx={{ display: 'grid', gap: 2, gridTemplateColumns: 'repeat(2, 1fr)' }}>
-          <TextField
-            label="Nombre"
-            value={formData.name}
-            onChange={handleChange('name')}
-            error={!!errors.name}
-            helperText={errors.name}
-            fullWidth
+    <FormDialog
+      open={open}
+      title={employee ? 'Editar empleado' : 'Nuevo empleado'}
+      submitLabel={employee ? 'Guardar cambios' : 'Crear empleado'}
+      onClose={onClose}
+      onSubmit={submit}
+      submitting={submitting}
+      error={error}
+    >
+      <TextField label="Nombre completo" value={form.name} onChange={set('name')} error={!!errors.name} helperText={errors.name} autoFocus required />
+      <Grid container spacing={2}>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Correo" type="email" value={form.email} onChange={set('email')} error={!!errors.email} helperText={errors.email} required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <TextField label="Teléfono" value={form.phone} onChange={set('phone')} error={!!errors.phone} helperText={errors.phone} required />
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Autocomplete
+            freeSolo
+            options={departments}
+            value={form.department}
+            onInputChange={(_, v) => setForm((f) => ({ ...f, department: v }))}
+            renderInput={(p) => <TextField {...p} label="Departamento" error={!!errors.department} helperText={errors.department} required />}
           />
-
-          <TextField
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={handleChange('email')}
-            error={!!errors.email}
-            helperText={errors.email}
-            fullWidth
+        </Grid>
+        <Grid item xs={12} sm={6}>
+          <Autocomplete
+            freeSolo
+            options={positions}
+            value={form.position}
+            onInputChange={(_, v) => setForm((f) => ({ ...f, position: v }))}
+            renderInput={(p) => <TextField {...p} label="Cargo" error={!!errors.position} helperText={errors.position} required />}
           />
-
+        </Grid>
+        <Grid item xs={12} sm={6}>
           <TextField
-            label="Teléfono"
-            value={formData.phone}
-            onChange={handleChange('phone')}
-            error={!!errors.phone}
-            helperText={errors.phone}
-            fullWidth
-          />
-
-          <TextField
-            label="Cargo"
-            value={formData.position}
-            onChange={handleChange('position')}
-            error={!!errors.position}
-            helperText={errors.position}
-            fullWidth
-          />
-
-          <TextField
-            label="Departamento"
-            value={formData.department}
-            onChange={handleChange('department')}
-            error={!!errors.department}
-            helperText={errors.department}
-            fullWidth
-          />
-
-          <TextField
-            label="Fecha de Contratación"
+            label="Fecha de contratación"
             type="date"
-            value={formData.hireDate}
-            onChange={handleChange('hireDate')}
+            value={form.hireDate}
+            onChange={set('hireDate')}
+            InputLabelProps={{ shrink: true }}
             error={!!errors.hireDate}
             helperText={errors.hireDate}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
+            required
           />
-
+        </Grid>
+        <Grid item xs={12} sm={6}>
           <TextField
-            label="Salario"
-            value={formData.salary ? formatCurrency(formData.salary) : ''}
-            onChange={handleChange('salary')}
+            label="Salario mensual"
+            type="number"
+            value={form.salary || ''}
+            onChange={set('salary')}
+            InputProps={{ startAdornment: <InputAdornment position="start">$</InputAdornment>, inputProps: { min: 0, step: 10000 } }}
             error={!!errors.salary}
             helperText={errors.salary}
-            fullWidth
-            InputProps={{
-              startAdornment: <InputAdornment position="start">$</InputAdornment>,
-            }}
+            required
           />
-
-          <FormControlLabel
-            control={
-              <Switch
-                checked={formData.status}
-                onChange={handleChange('status')}
-                color="primary"
-              />
-            }
-            label="Empleado Activo"
-          />
-        </Box>
-
-        {submitError && (
-          <Alert severity="error" sx={{ mt: 2 }}>
-            {submitError}
-          </Alert>
-        )}
-
-        <Box sx={{ mt: 3, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-          <CancelButton
-            variant="contained"
-            onClick={onCancel}
-          >
-            Cancelar
-          </CancelButton>
-          <SubmitButton
-            type="submit"
-            variant="contained"
-          >
-            {isEditing ? 'Guardar Cambios' : 'Crear Empleado'}
-          </SubmitButton>
-        </Box>
-      </form>
-    </FormContainer>
+        </Grid>
+      </Grid>
+      <FormControlLabel
+        control={<Switch checked={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.checked }))} />}
+        label={form.status ? 'Empleado activo' : 'Empleado inactivo'}
+      />
+    </FormDialog>
   );
 };
 
-export default EmployeeForm; 
+export default EmployeeForm;

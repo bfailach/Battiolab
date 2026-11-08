@@ -14,10 +14,11 @@ module.exports = {
     es6: true,
     jest: true
   },
-  plugins: ['react', '@typescript-eslint'],
+  plugins: ['react', 'react-hooks', '@typescript-eslint'],
   extends: [
     'eslint:recommended',
     'plugin:react/recommended',
+    'plugin:react-hooks/recommended',
     'plugin:@typescript-eslint/recommended',
     'prettier'
   ],
@@ -28,6 +29,7 @@ module.exports = {
   },
   rules: {
     'react/prop-types': 'off',
+    'react/react-in-jsx-scope': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off'
   }
   ,

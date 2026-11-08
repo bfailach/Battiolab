@@ -9,6 +9,10 @@ const userSchema = new mongoose.Schema({
     trim: true,
     lowercase: true
   },
+  name: {
+    type: String,
+    trim: true
+  },
   username: {
     type: String,
     sparse: true,
@@ -29,7 +33,7 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: ['admin', 'user'],
-    default: 'admin'  // Por ahora, todos los usuarios serán admin
+    default: 'user'
   }
 }, {
   timestamps: true
@@ -40,21 +44,14 @@ userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) return next();
   
   try {
-    console.log('Iniciando hash de contraseña para usuario:', this.email);
-    
     if (!this.password || typeof this.password !== 'string') {
       throw new Error(`Contraseña inválida: ${typeof this.password}`);
     }
     
     const salt = await bcrypt.genSalt(10);
-    console.log('Salt generado correctamente');
-    
     this.password = await bcrypt.hash(this.password, salt);
-    console.log('Contraseña encriptada correctamente');
-    
     next();
   } catch (error) {
-    console.error('Error en hash de contraseña:', error);
     next(error);
   }
 });

@@ -1,11 +1,11 @@
-const express = require('express');
-const router = express.Router();
-const salesController = require('../controllers/sales.controller');
+const router = require('express').Router();
+const c = require('../controllers/sales.controller');
+const { requireAdmin } = require('../middleware/auth');
 
-router.get('/', salesController.getSales);
-router.get('/:id', salesController.getSaleById);
-router.post('/', salesController.createSale);
-router.put('/:id', salesController.updateSale);
-router.delete('/:id', salesController.deleteSale);
+router.get('/', c.getSales);
+router.get('/:id', c.getSaleById);
+router.post('/', c.createSale);
+router.put('/:id', c.updateSale);
+router.delete('/:id', requireAdmin, c.deleteSale);
 
-module.exports = router; 
+module.exports = router;

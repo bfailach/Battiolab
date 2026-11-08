@@ -1,81 +1,68 @@
 # Battiolab ERP
 
-Sistema ERP de escritorio para la gestión de Battiolab, empresa dedicada a la venta y reparación de vehículos eléctricos.
+Sistema de escritorio para Battiolab, empresa de venta y reparación de vehículos eléctricos. Gestiona ventas, inventario (con lotes y escáner de códigos), clientes y empleados.
 
-## Características principales
+## Módulos
 
-- Gestión de clientes
-- Gestión de empleados
-- Control de inventario
-- Sistema de ventas
-- Autenticación y autorización de usuarios
-- Interfaz moderna y responsive
+| Módulo | Pantallas |
+| --- | --- |
+| Inicio | Ingresos del mes, carga del inventario, ventas recientes y lo más vendido |
+| Ventas | Lista con filtros, nueva venta tipo punto de venta, reportes y configuración (impuesto, numeración, métodos de pago) |
+| Inventario | Existencias, alertas de stock, catálogo, lotes recibidos y escaneo de códigos |
+| Clientes | Lista, grupos (mejores, recurrentes, nuevos, sin actividad), historial de compras y reportes |
+| Empleados | Lista, departamentos, reportes de nómina y antigüedad, configuración de cargos y áreas |
 
-## Requisitos previos
+Reglas de negocio importantes:
 
-- Node.js (v14 o superior)
-- npm (v6 o superior)
+- Registrar una venta descuenta el stock; anularla o eliminarla lo repone. No se puede vender sin stock salvo que se active en Configuración de ventas.
+- Registrar un lote suma sus unidades al stock. Cada entrada o salida queda en el historial de movimientos del producto.
+- La primera cuenta registrada es administradora. Solo los administradores pueden eliminar registros y cambiar la configuración.
+
+## Requisitos
+
+- Node.js 18 o superior
+- MongoDB 6 o superior corriendo localmente (o una URI remota)
 
 ## Instalación
 
-1. Clonar el repositorio:
 ```bash
-git clone https://github.com/battiolab/erp.git
-cd erp
+git clone https://github.com/bfailach/Battiolab.git
+cd Battiolab
+npm install
+npm install --prefix server
+cp server/.env.example server/.env   # y edita JWT_SECRET
 ```
 
-2. Instalar dependencias:
-```bash
-npm install
-```
+Variables de `server/.env`:
+
+| Variable | Descripción |
+| --- | --- |
+| `PORT` | Puerto del API (por defecto 3006) |
+| `MONGODB_URI` | Conexión a MongoDB |
+| `JWT_SECRET` | Clave para firmar las sesiones. Usa una cadena larga y aleatoria |
+| `SITE_CODE` | Opcional. Si se define, el registro exige este código de sede |
+| `CORS_ORIGINS` | Opcional. Orígenes permitidos separados por comas |
 
 ## Desarrollo
-
-Para ejecutar la aplicación en modo desarrollo:
 
 ```bash
 npm run dev
 ```
 
-Esto iniciará:
-- El servidor de desarrollo de React en http://localhost:3000
-- La aplicación Electron que se conectará al servidor de desarrollo
+Levanta el API en `http://localhost:3006`, React en `http://localhost:3000` y la ventana de Electron.
 
-## Construcción
-
-Para construir la aplicación para producción:
+## Pruebas y calidad
 
 ```bash
-npm run build
+npm test        # pruebas de API y Electron
+npm run lint
+npm run build   # build de producción en build/
 ```
 
-## Estructura del proyecto
+## Tecnologías
 
-```
-battiolab-erp/
-├── src/
-│   ├── components/
-│   │   ├── auth/
-│   │   │   ├── Login.tsx
-│   │   │   └── Register.tsx
-│   │   ├── clients/
-│   │   ├── employees/
-│   │   ├── inventory/
-│   │   └── sales/
-│   ├── App.tsx
-│   └── main.js
-├── package.json
-└── tsconfig.json
-```
-
-## Tecnologías utilizadas
-
-- Electron
-- React
-- TypeScript
-- Material-UI
-- React Router
+Electron, React 18, TypeScript, Material UI 5, Recharts, Express, Mongoose y JWT.
 
 ## Licencia
 
-ISC 
+ISC
