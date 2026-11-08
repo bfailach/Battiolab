@@ -277,7 +277,7 @@ const NewSale: React.FC = () => {
               </Surface>
             </Stack>
 
-            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 156 } }}>
+            <Box sx={{ position: { lg: 'sticky' }, top: { lg: 100 } }}>
               <Surface
                 title="Resumen"
                 subtitle={client ? (isFinalConsumer ? 'Consumidor final' : `${client.name}, ${docLabel(client.documentType)} ${formatDocument(client.documentType, client.document, client.checkDigit)}`) : 'Sin cliente seleccionado'}

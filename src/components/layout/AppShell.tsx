@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Avatar,
@@ -9,8 +9,10 @@ import {
   Drawer,
   IconButton,
   ListItemIcon,
+  Grow,
   Menu,
   MenuItem,
+  Popper,
   SxProps,
   Theme,
   Tooltip,
@@ -20,6 +22,7 @@ import {
 import { alpha, useTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -136,6 +139,119 @@ const MobileMenu: React.FC<{ open: boolean; onClose: () => void; badges: Record<
   );
 };
 
+/**
+ * Módulo de la barra superior. Al pasar el mouse (o enfocar con el teclado) despliega sus secciones.
+ */
+const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: string; badges: Record<BadgeKey, number> }> = ({
+  module: m,
+  active,
+  activeChild,
+  badges
+}) => {
+  const navigate = useNavigate();
+  const anchor = useRef<HTMLButtonElement>(null);
+  const timer = useRef<number>();
+  const [open, setOpen] = useState(false);
+  const n = moduleCount(m, badges);
+
+  const show = () => {
+    window.clearTimeout(timer.current);
+    if (m.children) setOpen(true);
+  };
+  // Pequeña espera al salir para poder llevar el mouse del botón al panel
+  const hide = () => {
+    window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(() => setOpen(false), 140);
+  };
+  useEffect(() => () => window.clearTimeout(timer.current), []);
+
+  const go = (to: string) => {
+    setOpen(false);
+    navigate(to);
+  };
+
+  return (
+    <Box onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onKeyDown={(e) => e.key === 'Escape' && setOpen(false)}>
+      <ButtonBase
+        ref={anchor}
+        onClick={() => go(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
+        aria-current={active ? 'page' : undefined}
+        aria-haspopup={m.children ? 'menu' : undefined}
+        aria-expanded={m.children ? open : undefined}
+        sx={{
+          position: 'relative',
+          gap: 0.875,
+          px: 1.75,
+          height: 40,
+          borderRadius: 999,
+          fontWeight: 700,
+          fontSize: '0.875rem',
+          color: active ? brand.violet : alpha('#FFFFFF', 0.8),
+          bgcolor: active ? brand.charge : open ? alpha('#FFFFFF', 0.08) : 'transparent',
+          transition: 'background-color 140ms, color 140ms',
+          '&:hover': { color: active ? brand.violet : '#FFFFFF', bgcolor: active ? brand.charge : alpha('#FFFFFF', 0.08) },
+          '& svg': { fontSize: 18 }
+        }}
+      >
+        {m.icon}
+        {m.label}
+        {m.children && (
+          <ExpandMoreIcon sx={{ fontSize: '16px !important', ml: -0.25, opacity: 0.7, transition: 'transform 160ms', transform: open ? 'rotate(180deg)' : 'none' }} />
+        )}
+        {n > 0 && !active && (
+          <Box component="span" aria-label={`${n} pendientes`} sx={{ position: 'absolute', top: 7, right: 8, width: 7, height: 7, borderRadius: '50%', bgcolor: brand.charge }} />
+        )}
+      </ButtonBase>
+      {m.children && (
+        <Popper open={open} anchorEl={anchor.current} placement="bottom" transition sx={{ zIndex: 1300 }} modifiers={[{ name: 'offset', options: { offset: [0, 14] } }]}>
+          {({ TransitionProps }) => (
+            <Grow {...TransitionProps} style={{ transformOrigin: 'top center' }} timeout={140}>
+              <Box
+                role="menu"
+                aria-label={m.label}
+                onMouseEnter={show}
+                onMouseLeave={hide}
+                sx={{ ...smokedGlass, width: 236, p: 0.75, borderRadius: 4 } as SxProps<Theme>}
+              >
+                {(m.children || []).map((c) => {
+                  const on = active && activeChild === c.path;
+                  const count = c.badgeKey ? badges[c.badgeKey] : 0;
+                  return (
+                    <ButtonBase
+                      key={c.path}
+                      role="menuitem"
+                      onClick={() => go(`${m.path}/${c.path}`)}
+                      sx={{
+                        width: '100%',
+                        justifyContent: 'flex-start',
+                        gap: 1.25,
+                        px: 1.5,
+                        height: 38,
+                        borderRadius: 3,
+                        fontSize: '0.875rem',
+                        fontWeight: on ? 800 : 600,
+                        color: on ? '#FFFFFF' : alpha('#FFFFFF', 0.78),
+                        bgcolor: on ? alpha('#FFFFFF', 0.1) : 'transparent',
+                        '&:hover, &:focus-visible': { color: '#FFFFFF', bgcolor: alpha('#FFFFFF', 0.1) }
+                      }}
+                    >
+                      <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: on ? brand.charge : 'transparent' }} />
+                      <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
+                        {c.label}
+                      </Box>
+                      {count > 0 && <Count n={count} />}
+                    </ButtonBase>
+                  );
+                })}
+              </Box>
+            </Grow>
+          )}
+        </Popper>
+      )}
+    </Box>
+  );
+};
+
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const theme = useTheme();
   const wide = useMediaQuery(theme.breakpoints.up('lg'));
@@ -154,75 +270,58 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     window.scrollTo({ top: 0 });
   }, [pathname]);
 
-  const iconButton = { color: '#FFFFFF', '&:hover': { bgcolor: alpha('#FFFFFF', 0.1) } };
+  const plainIcon = { color: 'text.primary', '&:hover': { bgcolor: 'action.hover' } };
 
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
-      <Box component="header" sx={{ position: 'sticky', top: 0, zIndex: theme.zIndex.appBar, px: { xs: 1.5, md: 3 }, pt: { xs: 1.5, md: 2 }, pointerEvents: 'none' }}>
-        {/* Barra principal */}
+      <Box
+        component="header"
+        sx={{
+          position: 'sticky',
+          top: 0,
+          zIndex: theme.zIndex.appBar,
+          px: { xs: 1.5, md: 3 },
+          py: { xs: 1.25, md: 1.5 },
+          // Franja con desvanecido para que el logo y las acciones se lean sobre el contenido al hacer scroll
+          background: `linear-gradient(180deg, ${theme.palette.background.default} 55%, ${alpha(theme.palette.background.default, 0)} 100%)`
+        }}
+      >
         <Box
           sx={{
-            ...smokedGlass,
-            pointerEvents: 'auto',
             maxWidth: 1480,
             mx: 'auto',
-            height: 64,
-            borderRadius: 999,
-            px: 1.25,
+            minHeight: 60,
             display: 'grid',
             gridTemplateColumns: wide ? '1fr auto 1fr' : 'auto 1fr auto',
             alignItems: 'center',
-            gap: 1
-          } as SxProps<Theme>}
+            gap: 1.5
+          }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'text.primary' }}>
             {!wide && (
-              <IconButton onClick={() => setMenuOpen(true)} aria-label="Abrir menú" sx={iconButton}>
+              <IconButton onClick={() => setMenuOpen(true)} aria-label="Abrir menú" sx={plainIcon}>
                 <MenuIcon />
               </IconButton>
             )}
-            <ButtonBase onClick={() => navigate('/dashboard')} aria-label="Ir al inicio" sx={{ px: 1.25, py: 1, borderRadius: 999 }}>
-              <Logo size={24} />
+            <ButtonBase onClick={() => navigate('/dashboard')} aria-label="Ir al inicio" sx={{ px: 1, py: 1, borderRadius: 999 }}>
+              <Logo size={24} color="currentColor" />
             </ButtonBase>
           </Box>
 
           {wide ? (
-            <Box component="nav" aria-label="Navegación principal" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
-              {NAV.map((m) => {
-                const isActive = active?.path === m.path;
-                const n = moduleCount(m, badges);
-                return (
-                  <ButtonBase
-                    key={m.path}
-                    onClick={() => navigate(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
-                    aria-current={isActive ? 'page' : undefined}
-                    sx={{
-                      position: 'relative',
-                      gap: 1,
-                      px: 2,
-                      height: 42,
-                      borderRadius: 999,
-                      fontWeight: 700,
-                      fontSize: '0.9375rem',
-                      color: isActive ? brand.violet : alpha('#FFFFFF', 0.78),
-                      bgcolor: isActive ? brand.charge : 'transparent',
-                      transition: 'background-color 140ms, color 140ms',
-                      '&:hover': { color: isActive ? brand.violet : '#FFFFFF', bgcolor: isActive ? brand.charge : alpha('#FFFFFF', 0.08) },
-                      '& svg': { fontSize: 19 }
-                    }}
-                  >
-                    {m.icon}
-                    {m.label}
-                    {n > 0 && !isActive && (
-                      <Box component="span" aria-label={`${n} pendientes`} sx={{ position: 'absolute', top: 8, right: 10, width: 7, height: 7, borderRadius: '50%', bgcolor: brand.charge }} />
-                    )}
-                  </ButtonBase>
-                );
-              })}
+            <Box
+              component="nav"
+              aria-label="Navegación principal"
+              sx={{ ...smokedGlass, display: 'flex', alignItems: 'center', gap: 0.25, p: 0.625, borderRadius: 999 } as SxProps<Theme>}
+            >
+              {NAV.map((m) => (
+                <NavItem key={m.path} module={m} active={active?.path === m.path} activeChild={child?.path} badges={badges} />
+              ))}
             </Box>
           ) : (
-            <Typography sx={{ fontWeight: 700, textAlign: 'center' }} noWrap>
+            <Typography sx={{ fontWeight: 700, textAlign: 'center', color: 'text.primary' }} noWrap>
               {active?.label}
+              {child ? ` / ${child.label}` : ''}
             </Typography>
           )}
 
@@ -233,13 +332,13 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 color="charge"
                 startIcon={<AddIcon />}
                 onClick={() => navigate('/dashboard/sales/new')}
-                sx={{ display: { xs: 'none', sm: 'inline-flex' }, height: 42 }}
+                sx={{ display: { xs: 'none', sm: 'inline-flex' }, height: 40 }}
               >
                 Nueva venta
               </Button>
             )}
             <Tooltip title={mode === 'light' ? 'Usar tema oscuro' : 'Usar tema claro'}>
-              <IconButton onClick={toggleMode} aria-label="Cambiar tema" sx={iconButton}>
+              <IconButton onClick={toggleMode} aria-label="Cambiar tema" sx={plainIcon}>
                 {mode === 'light' ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
               </IconButton>
             </Tooltip>
@@ -250,55 +349,6 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
             </Tooltip>
           </Box>
         </Box>
-
-        {/* Subpáginas del módulo activo */}
-        {active?.children && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
-            <Box
-              component="nav"
-              aria-label={`Secciones de ${active.label}`}
-              sx={{
-                ...smokedGlass,
-                pointerEvents: 'auto',
-                display: 'flex',
-                gap: 0.25,
-                p: 0.5,
-                borderRadius: 999,
-                maxWidth: '100%',
-                overflowX: 'auto',
-                scrollbarWidth: 'none',
-                '&::-webkit-scrollbar': { display: 'none' }
-              } as SxProps<Theme>}
-            >
-              {active.children.map((c) => {
-                const on = child?.path === c.path;
-                const n = c.badgeKey ? badges[c.badgeKey] : 0;
-                return (
-                  <ButtonBase
-                    key={c.path}
-                    onClick={() => navigate(`${active.path}/${c.path}`)}
-                    aria-current={on ? 'page' : undefined}
-                    sx={{
-                      flexShrink: 0,
-                      gap: 0.75,
-                      px: 1.75,
-                      height: 34,
-                      borderRadius: 999,
-                      fontSize: '0.8125rem',
-                      fontWeight: on ? 800 : 600,
-                      color: on ? '#FFFFFF' : alpha('#FFFFFF', 0.68),
-                      bgcolor: on ? alpha('#FFFFFF', 0.14) : 'transparent',
-                      '&:hover': { color: '#FFFFFF', bgcolor: on ? alpha('#FFFFFF', 0.14) : alpha('#FFFFFF', 0.07) }
-                    }}
-                  >
-                    {c.label}
-                    {n > 0 && <Count n={n} />}
-                  </ButtonBase>
-                );
-              })}
-            </Box>
-          </Box>
-        )}
       </Box>
 
       <Menu
@@ -336,7 +386,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
       {!wide && <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} badges={badges} />}
 
-      <Box component="main" sx={{ px: { xs: 2, md: 5 }, pt: { xs: 3, md: 5 }, pb: 6, maxWidth: 1480, mx: 'auto', width: '100%' }}>
+      <Box component="main" sx={{ px: { xs: 2, md: 5 }, pt: { xs: 2, md: 3 }, pb: 6, maxWidth: 1480, mx: 'auto', width: '100%' }}>
         {children}
       </Box>
     </Box>

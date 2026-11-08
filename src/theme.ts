@@ -118,6 +118,18 @@ export const createAppTheme = (mode: PaletteMode) => {
           '@media (prefers-reduced-motion: reduce)': {
             '*, *::before, *::after': { transition: 'none !important', animation: 'none !important' }
           },
+          // El espacio del scroll queda reservado: el contenido no salta al cambiar entre páginas largas y cortas
+          html: { scrollbarGutter: 'stable', scrollbarWidth: 'thin', scrollbarColor: `${dark ? '#4A4366' : '#C3BDD6'} transparent` },
+          '::-webkit-scrollbar': { width: 10, height: 10 },
+          '::-webkit-scrollbar-track': { background: 'transparent' },
+          '::-webkit-scrollbar-thumb': {
+            backgroundColor: dark ? '#4A4366' : '#C3BDD6',
+            borderRadius: 999,
+            border: '3px solid transparent',
+            backgroundClip: 'content-box'
+          },
+          '::-webkit-scrollbar-thumb:hover': { backgroundColor: brand.magenta },
+          '::-webkit-scrollbar-corner': { background: 'transparent' },
           'input[type=number]': { MozAppearance: 'textfield' },
           'input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button': { WebkitAppearance: 'none', margin: 0 }
         }
