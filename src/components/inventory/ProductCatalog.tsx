@@ -92,9 +92,7 @@ const ProductCatalog: React.FC = () => {
                             IVA {p.taxRate} % incluido
                           </Typography>
                         </Box>
-                        <Box sx={{ color: '#fff', '& .MuiTypography-root': { color: '#fff' } }}>
-                          <StockMeter stock={p.stock} minStock={p.minStock} threshold={threshold} width={64} />
-                        </Box>
+                        <StockMeter stock={p.stock} minStock={p.minStock} threshold={threshold} width={64} inverse />
                       </Box>
                     </Box>
                   </ButtonBase>

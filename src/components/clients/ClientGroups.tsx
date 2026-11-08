@@ -62,7 +62,7 @@ const ClientGroups: React.FC = () => {
                 aria-orientation="vertical"
                 sx={{
                   position: { lg: 'sticky' },
-                  top: { lg: 92 },
+                  top: { lg: 156 },
                   display: 'flex',
                   flexDirection: { xs: 'row', lg: 'column' },
                   gap: 0.75,

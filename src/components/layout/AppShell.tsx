@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Avatar,
   Box,
-  Breadcrumbs,
   Button,
   ButtonBase,
   Divider,
@@ -12,18 +11,21 @@ import {
   ListItemIcon,
   Menu,
   MenuItem,
+  SxProps,
+  Theme,
   Tooltip,
   Typography,
   useMediaQuery
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
 import Logo from '../shared/Logo';
-import { NAV, NavChild, findActive } from './nav';
+import { NAV, NavChild, NavModule, findActive } from './nav';
 import { useAuth } from '../../contexts/AuthContext';
 import { useUI } from '../../contexts/UIContext';
 import { brand } from '../../theme';
@@ -33,11 +35,11 @@ import salesService, { isOverdue } from '../../services/sales.service';
 import settingsService from '../../services/settings.service';
 import { stockLevel } from '../shared/ChargeMeter';
 
-const SIDEBAR_WIDTH = 256;
+type BadgeKey = NonNullable<NavChild['badgeKey']>;
 
 /** Contadores para las insignias del menú: productos en alerta y facturas vencidas. */
 const useBadges = (pathname: string) => {
-  const [badges, setBadges] = useState<Record<NonNullable<NavChild['badgeKey']>, number>>({ lowStock: 0, overdue: 0 });
+  const [badges, setBadges] = useState<Record<BadgeKey, number>>({ lowStock: 0, overdue: 0 });
   useEffect(() => {
     let alive = true;
     Promise.all([
@@ -60,119 +62,91 @@ const useBadges = (pathname: string) => {
   return badges;
 };
 
-const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
-  const theme = useTheme();
+const moduleCount = (m: NavModule, badges: Record<BadgeKey, number>) =>
+  (m.children || []).reduce((sum, c) => sum + (c.badgeKey ? badges[c.badgeKey] : 0), 0);
+
+/** Vidrio ahumado: violeta oscuro translúcido con desenfoque del contenido que pasa por debajo. */
+const smokedGlass: SxProps<Theme> = {
+  bgcolor: (t: Theme) => alpha('#1E1A2E', t.palette.mode === 'dark' ? 0.62 : 0.74),
+  backdropFilter: 'blur(22px) saturate(160%)',
+  WebkitBackdropFilter: 'blur(22px) saturate(160%)',
+  border: `1px solid ${alpha('#FFFFFF', 0.1)}`,
+  boxShadow: `0 12px 32px ${alpha('#0E0B18', 0.35)}, inset 0 1px 0 ${alpha('#FFFFFF', 0.06)}`,
+  color: '#FFFFFF'
+};
+
+const Count: React.FC<{ n: number }> = ({ n }) => (
+  <Box
+    component="span"
+    aria-label={`${n} pendientes`}
+    sx={{ minWidth: 20, px: 0.6, borderRadius: 999, bgcolor: brand.charge, color: brand.violet, fontSize: '0.6875rem', fontWeight: 800, lineHeight: '18px', textAlign: 'center' }}
+  >
+    {n}
+  </Box>
+);
+
+/** Menú completo para pantallas angostas. */
+const MobileMenu: React.FC<{ open: boolean; onClose: () => void; badges: Record<BadgeKey, number> }> = ({ open, onClose, badges }) => {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { module: activeModule, child: activeChild } = findActive(pathname);
-  const badges = useBadges(pathname);
-  const sb = theme.palette.sidebar;
-
+  const { module: active, child } = findActive(pathname);
   const go = (to: string) => {
     navigate(to);
-    onNavigate?.();
+    onClose();
   };
-
   return (
-    <Box
-      component="nav"
-      aria-label="Navegación principal"
-      sx={{ width: SIDEBAR_WIDTH, height: '100%', bgcolor: sb.bg, color: sb.text, display: 'flex', flexDirection: 'column' }}
-    >
-      <ButtonBase onClick={() => go('/dashboard')} sx={{ px: 3, py: 3, justifyContent: 'flex-start' }} aria-label="Ir al inicio">
-        <Logo size={26} />
-      </ButtonBase>
-
-      <Box sx={{ flex: 1, overflowY: 'auto', px: 1.75, pb: 2 }}>
+    <Drawer anchor="top" open={open} onClose={onClose} PaperProps={{ sx: { ...smokedGlass, borderRadius: '0 0 24px 24px', border: 0, maxHeight: '90vh' } as SxProps<Theme> }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 2.5, py: 2 }}>
+        <Logo size={24} />
+        <IconButton onClick={onClose} aria-label="Cerrar menú" sx={{ color: '#fff' }}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+      <Box component="nav" aria-label="Navegación principal" sx={{ px: 1.5, pb: 2.5, display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
         {NAV.map((m) => {
-          const isActive = activeModule?.path === m.path;
-          const target = m.children ? `${m.path}/${m.children[0].path}` : m.path;
+          const isActive = active?.path === m.path;
           return (
-            <Box key={m.path} sx={{ mb: 0.5 }}>
+            <Box key={m.path} sx={{ p: 1, borderRadius: 4, bgcolor: isActive ? alpha('#FFFFFF', 0.06) : 'transparent' }}>
               <ButtonBase
-                onClick={() => go(target)}
-                aria-current={isActive && !m.children ? 'page' : undefined}
-                sx={{
-                  width: '100%',
-                  justifyContent: 'flex-start',
-                  gap: 1.5,
-                  px: 1.75,
-                  py: 1.1,
-                  borderRadius: 999,
-                  color: isActive ? sb.activeText : sb.muted,
-                  bgcolor: isActive ? sb.active : 'transparent',
-                  transition: 'background-color 120ms, color 120ms',
-                  '&:hover': { bgcolor: isActive ? sb.active : sb.hover, color: isActive ? sb.activeText : sb.text },
-                  '& svg': { fontSize: 20 }
-                }}
+                onClick={() => go(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
+                sx={{ width: '100%', justifyContent: 'flex-start', gap: 1.25, px: 1.25, py: 1, borderRadius: 999, fontWeight: 700, color: isActive ? brand.charge : '#fff', '& svg': { fontSize: 20 } }}
               >
                 {m.icon}
-                <Typography sx={{ fontWeight: 700, fontSize: '0.9375rem' }}>{m.label}</Typography>
+                {m.label}
               </ButtonBase>
-
-              {m.children && isActive && (
-                <Box sx={{ mt: 0.75, mb: 1.5, pl: 1 }}>
-                  {m.children.map((c) => {
-                    const childActive = activeChild?.path === c.path;
-                    const count = c.badgeKey ? badges[c.badgeKey] : 0;
-                    return (
-                      <ButtonBase
-                        key={c.path}
-                        onClick={() => go(`${m.path}/${c.path}`)}
-                        aria-current={childActive ? 'page' : undefined}
-                        sx={{
-                          width: '100%',
-                          justifyContent: 'flex-start',
-                          gap: 1.5,
-                          pl: 2.25,
-                          pr: 1.25,
-                          py: 0.85,
-                          borderRadius: 999,
-                          color: childActive ? sb.text : sb.muted,
-                          fontSize: '0.875rem',
-                          fontWeight: childActive ? 700 : 500,
-                          '&:hover': { color: sb.text, bgcolor: sb.hover }
-                        }}
-                      >
-                        <Box
-                          component="span"
-                          sx={{ width: 6, height: 6, borderRadius: '50%', flexShrink: 0, bgcolor: childActive ? brand.charge : 'transparent' }}
-                        />
-                        <Box component="span" sx={{ flex: 1, textAlign: 'left' }}>
-                          {c.label}
-                        </Box>
-                        {count > 0 && (
-                          <Box
-                            component="span"
-                            aria-label={`${count} pendientes`}
-                            sx={{ minWidth: 22, px: 0.75, borderRadius: 999, bgcolor: brand.charge, color: brand.violet, fontSize: '0.75rem', fontWeight: 800, lineHeight: '20px', textAlign: 'center' }}
-                          >
-                            {count}
-                          </Box>
-                        )}
-                      </ButtonBase>
-                    );
-                  })}
-                </Box>
-              )}
+              {m.children?.map((c) => {
+                const n = c.badgeKey ? badges[c.badgeKey] : 0;
+                const on = isActive && child?.path === c.path;
+                return (
+                  <ButtonBase
+                    key={c.path}
+                    onClick={() => go(`${m.path}/${c.path}`)}
+                    sx={{ width: '100%', justifyContent: 'space-between', pl: 5, pr: 1.25, py: 0.75, borderRadius: 999, fontSize: '0.875rem', fontWeight: on ? 700 : 500, color: on ? '#fff' : alpha('#FFFFFF', 0.7) }}
+                  >
+                    {c.label}
+                    {n > 0 && <Count n={n} />}
+                  </ButtonBase>
+                );
+              })}
             </Box>
           );
         })}
       </Box>
-    </Box>
+    </Drawer>
   );
 };
 
 const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const theme = useTheme();
-  const isDesktop = useMediaQuery(theme.breakpoints.up('lg'));
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [menuEl, setMenuEl] = useState<HTMLElement | null>(null);
+  const wide = useMediaQuery(theme.breakpoints.up('lg'));
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [accountEl, setAccountEl] = useState<HTMLElement | null>(null);
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { mode, toggleMode } = useUI();
-  const { module, child } = findActive(pathname);
+  const { module: active, child } = findActive(pathname);
+  const badges = useBadges(pathname);
   const email = user?.user.email || '';
   const displayName = user?.user.name || email.split('@')[0];
 
@@ -180,113 +154,190 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     window.scrollTo({ top: 0 });
   }, [pathname]);
 
+  const iconButton = { color: '#FFFFFF', '&:hover': { bgcolor: alpha('#FFFFFF', 0.1) } };
+
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
-      {isDesktop ? (
-        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: 'sidebar.bg', borderRight: 'none' }}>
-          <Box sx={{ position: 'sticky', top: 0, height: '100vh' }}>
-            <Sidebar />
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+      <Box component="header" sx={{ position: 'sticky', top: 0, zIndex: theme.zIndex.appBar, px: { xs: 1.5, md: 3 }, pt: { xs: 1.5, md: 2 }, pointerEvents: 'none' }}>
+        {/* Barra principal */}
+        <Box
+          sx={{
+            ...smokedGlass,
+            pointerEvents: 'auto',
+            maxWidth: 1480,
+            mx: 'auto',
+            height: 64,
+            borderRadius: 999,
+            px: 1.25,
+            display: 'grid',
+            gridTemplateColumns: wide ? '1fr auto 1fr' : 'auto 1fr auto',
+            alignItems: 'center',
+            gap: 1
+          } as SxProps<Theme>}
+        >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            {!wide && (
+              <IconButton onClick={() => setMenuOpen(true)} aria-label="Abrir menú" sx={iconButton}>
+                <MenuIcon />
+              </IconButton>
+            )}
+            <ButtonBase onClick={() => navigate('/dashboard')} aria-label="Ir al inicio" sx={{ px: 1.25, py: 1, borderRadius: 999 }}>
+              <Logo size={24} />
+            </ButtonBase>
+          </Box>
+
+          {wide ? (
+            <Box component="nav" aria-label="Navegación principal" sx={{ display: 'flex', alignItems: 'center', gap: 0.25 }}>
+              {NAV.map((m) => {
+                const isActive = active?.path === m.path;
+                const n = moduleCount(m, badges);
+                return (
+                  <ButtonBase
+                    key={m.path}
+                    onClick={() => navigate(m.children ? `${m.path}/${m.children[0].path}` : m.path)}
+                    aria-current={isActive ? 'page' : undefined}
+                    sx={{
+                      position: 'relative',
+                      gap: 1,
+                      px: 2,
+                      height: 42,
+                      borderRadius: 999,
+                      fontWeight: 700,
+                      fontSize: '0.9375rem',
+                      color: isActive ? brand.violet : alpha('#FFFFFF', 0.78),
+                      bgcolor: isActive ? brand.charge : 'transparent',
+                      transition: 'background-color 140ms, color 140ms',
+                      '&:hover': { color: isActive ? brand.violet : '#FFFFFF', bgcolor: isActive ? brand.charge : alpha('#FFFFFF', 0.08) },
+                      '& svg': { fontSize: 19 }
+                    }}
+                  >
+                    {m.icon}
+                    {m.label}
+                    {n > 0 && !isActive && (
+                      <Box component="span" aria-label={`${n} pendientes`} sx={{ position: 'absolute', top: 8, right: 10, width: 7, height: 7, borderRadius: '50%', bgcolor: brand.charge }} />
+                    )}
+                  </ButtonBase>
+                );
+              })}
+            </Box>
+          ) : (
+            <Typography sx={{ fontWeight: 700, textAlign: 'center' }} noWrap>
+              {active?.label}
+            </Typography>
+          )}
+
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75 }}>
+            {pathname !== '/dashboard/sales/new' && (
+              <Button
+                variant="contained"
+                color="charge"
+                startIcon={<AddIcon />}
+                onClick={() => navigate('/dashboard/sales/new')}
+                sx={{ display: { xs: 'none', sm: 'inline-flex' }, height: 42 }}
+              >
+                Nueva venta
+              </Button>
+            )}
+            <Tooltip title={mode === 'light' ? 'Usar tema oscuro' : 'Usar tema claro'}>
+              <IconButton onClick={toggleMode} aria-label="Cambiar tema" sx={iconButton}>
+                {mode === 'light' ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Tu cuenta">
+              <IconButton onClick={(e) => setAccountEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
+                <Avatar sx={{ width: 38, height: 38, bgcolor: brand.magenta, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>{initials(displayName)}</Avatar>
+              </IconButton>
+            </Tooltip>
           </Box>
         </Box>
-      ) : (
-        <Drawer anchor="left" open={mobileOpen} onClose={() => setMobileOpen(false)} PaperProps={{ sx: { border: 'none', borderRadius: 0 } }}>
-          <Sidebar onNavigate={() => setMobileOpen(false)} />
-        </Drawer>
-      )}
 
-      <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <Box
-          component="header"
-          sx={{
-            position: 'sticky',
-            top: 0,
-            zIndex: theme.zIndex.appBar,
-            height: 68,
-            px: { xs: 2, md: 5 },
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1.5,
-            bgcolor: alpha(theme.palette.background.default, 0.82),
-            backdropFilter: 'blur(12px)',
-            borderBottom: `1px solid ${theme.palette.divider}`
+        {/* Subpáginas del módulo activo */}
+        {active?.children && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+            <Box
+              component="nav"
+              aria-label={`Secciones de ${active.label}`}
+              sx={{
+                ...smokedGlass,
+                pointerEvents: 'auto',
+                display: 'flex',
+                gap: 0.25,
+                p: 0.5,
+                borderRadius: 999,
+                maxWidth: '100%',
+                overflowX: 'auto',
+                scrollbarWidth: 'none',
+                '&::-webkit-scrollbar': { display: 'none' }
+              } as SxProps<Theme>}
+            >
+              {active.children.map((c) => {
+                const on = child?.path === c.path;
+                const n = c.badgeKey ? badges[c.badgeKey] : 0;
+                return (
+                  <ButtonBase
+                    key={c.path}
+                    onClick={() => navigate(`${active.path}/${c.path}`)}
+                    aria-current={on ? 'page' : undefined}
+                    sx={{
+                      flexShrink: 0,
+                      gap: 0.75,
+                      px: 1.75,
+                      height: 34,
+                      borderRadius: 999,
+                      fontSize: '0.8125rem',
+                      fontWeight: on ? 800 : 600,
+                      color: on ? '#FFFFFF' : alpha('#FFFFFF', 0.68),
+                      bgcolor: on ? alpha('#FFFFFF', 0.14) : 'transparent',
+                      '&:hover': { color: '#FFFFFF', bgcolor: on ? alpha('#FFFFFF', 0.14) : alpha('#FFFFFF', 0.07) }
+                    }}
+                  >
+                    {c.label}
+                    {n > 0 && <Count n={n} />}
+                  </ButtonBase>
+                );
+              })}
+            </Box>
+          </Box>
+        )}
+      </Box>
+
+      <Menu
+        anchorEl={accountEl}
+        open={Boolean(accountEl)}
+        onClose={() => setAccountEl(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        PaperProps={{ sx: { mt: 1.5, minWidth: 250 } }}
+      >
+        <Box sx={{ px: 2, py: 1.5 }}>
+          <Typography sx={{ fontWeight: 700 }}>{displayName}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            {email}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {user?.user.role === 'admin' ? 'Administrador' : 'Usuario'}
+            {user?.user.siteCode ? `, sede ${user.user.siteCode}` : ''}
+          </Typography>
+        </Box>
+        <Divider />
+        <MenuItem
+          onClick={() => {
+            setAccountEl(null);
+            logout();
+            navigate('/login');
           }}
         >
-          {!isDesktop && (
-            <IconButton onClick={() => setMobileOpen(true)} aria-label="Abrir menú" edge="start">
-              <MenuIcon />
-            </IconButton>
-          )}
-          <Breadcrumbs aria-label="Ubicación" sx={{ flex: 1, minWidth: 0, '& ol': { flexWrap: 'nowrap' } }}>
-            <Typography color={child ? 'text.secondary' : 'text.primary'} sx={{ fontWeight: 600 }} noWrap>
-              {module?.label || 'Battiolab'}
-            </Typography>
-            {child && (
-              <Typography color="text.primary" sx={{ fontWeight: 700 }} noWrap>
-                {child.label}
-              </Typography>
-            )}
-          </Breadcrumbs>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          Cerrar sesión
+        </MenuItem>
+      </Menu>
 
-          {pathname !== '/dashboard/sales/new' && (
-            <Button
-              variant="contained"
-              color="charge"
-              startIcon={<AddIcon />}
-              onClick={() => navigate('/dashboard/sales/new')}
-              sx={{ display: { xs: 'none', sm: 'inline-flex' } }}
-            >
-              Nueva venta
-            </Button>
-          )}
-          <Tooltip title={mode === 'light' ? 'Usar tema oscuro' : 'Usar tema claro'}>
-            <IconButton onClick={toggleMode} aria-label="Cambiar tema">
-              {mode === 'light' ? <DarkModeOutlinedIcon /> : <LightModeOutlinedIcon />}
-            </IconButton>
-          </Tooltip>
-          <Tooltip title="Tu cuenta">
-            <IconButton onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
-              <Avatar sx={{ width: 36, height: 36, bgcolor: brand.magenta, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>
-                {initials(displayName)}
-              </Avatar>
-            </IconButton>
-          </Tooltip>
-          <Menu
-            anchorEl={menuEl}
-            open={Boolean(menuEl)}
-            onClose={() => setMenuEl(null)}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            PaperProps={{ sx: { mt: 1, minWidth: 250 } }}
-          >
-            <Box sx={{ px: 2, py: 1.5 }}>
-              <Typography sx={{ fontWeight: 700 }}>{displayName}</Typography>
-              <Typography variant="body2" color="text.secondary">
-                {email}
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                {user?.user.role === 'admin' ? 'Administrador' : 'Usuario'}
-                {user?.user.siteCode ? `, sede ${user.user.siteCode}` : ''}
-              </Typography>
-            </Box>
-            <Divider />
-            <MenuItem
-              onClick={() => {
-                setMenuEl(null);
-                logout();
-                navigate('/login');
-              }}
-            >
-              <ListItemIcon>
-                <LogoutIcon fontSize="small" />
-              </ListItemIcon>
-              Cerrar sesión
-            </MenuItem>
-          </Menu>
-        </Box>
+      {!wide && <MobileMenu open={menuOpen} onClose={() => setMenuOpen(false)} badges={badges} />}
 
-        <Box component="main" sx={{ flex: 1, px: { xs: 2, md: 5 }, py: { xs: 3, md: 5 }, maxWidth: 1480, width: '100%' }}>
-          {children}
-        </Box>
+      <Box component="main" sx={{ px: { xs: 2, md: 5 }, pt: { xs: 3, md: 5 }, pb: 6, maxWidth: 1480, mx: 'auto', width: '100%' }}>
+        {children}
       </Box>
     </Box>
   );

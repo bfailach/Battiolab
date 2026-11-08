@@ -16,6 +16,8 @@ interface ChargeMeterProps {
   height?: number;
   label?: React.ReactNode;
   tooltip?: string;
+  /** Para usar sobre fondos oscuros (p. ej. tarjetas con imagen), sin importar el tema. */
+  inverse?: boolean;
 }
 
 /**
@@ -29,9 +31,11 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
   width = 96,
   height = 14,
   label,
-  tooltip
+  tooltip,
+  inverse
 }) => {
   const theme = useTheme();
+  const ink = inverse ? '#FFFFFF' : theme.palette.text.primary;
   const filled = value <= 0 ? 0 : Math.max(1, Math.round(Math.min(value, 1) * segments));
   const color = levelColor[level];
   const meter = (
@@ -52,7 +56,7 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
             width,
             height,
             borderRadius: '4px',
-            border: `1.5px solid ${alpha(theme.palette.text.primary, 0.35)}`
+            border: `1.5px solid ${alpha(ink, 0.35)}`
           }}
         >
           {Array.from({ length: segments }).map((_, i) => (
@@ -60,7 +64,7 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
               key={i}
               sx={{
                 borderRadius: '1.5px',
-                bgcolor: i < filled ? color : alpha(theme.palette.text.primary, 0.08)
+                bgcolor: i < filled ? color : alpha(ink, inverse ? 0.14 : 0.08)
               }}
             />
           ))}
@@ -71,12 +75,12 @@ const ChargeMeter: React.FC<ChargeMeterProps> = ({
             height: height * 0.45,
             ml: '1px',
             borderRadius: '0 2px 2px 0',
-            bgcolor: alpha(theme.palette.text.primary, 0.35)
+            bgcolor: alpha(ink, 0.35)
           }}
         />
       </Box>
       {label !== undefined && (
-        <Typography variant="body2" sx={{ fontWeight: 600, color: level === 'ok' ? 'text.primary' : color }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: level === 'ok' ? (inverse ? '#FFFFFF' : 'text.primary') : color }}>
           {label}
         </Typography>
       )}
@@ -92,11 +96,12 @@ export const stockLevel = (stock: number, minStock: number, threshold = 5): Char
   return stock <= min ? 'low' : 'ok';
 };
 
-export const StockMeter: React.FC<{ stock: number; minStock: number; threshold?: number; width?: number }> = ({
+export const StockMeter: React.FC<{ stock: number; minStock: number; threshold?: number; width?: number; inverse?: boolean }> = ({
   stock,
   minStock,
   threshold = 5,
-  width
+  width,
+  inverse
 }) => {
   const min = minStock > 0 ? minStock : threshold;
   const level = stockLevel(stock, minStock, threshold);
@@ -105,6 +110,7 @@ export const StockMeter: React.FC<{ stock: number; minStock: number; threshold?:
       value={stock / (min * 3)}
       level={level}
       width={width}
+      inverse={inverse}
       label={`${stock} u.`}
       tooltip={level === 'empty' ? 'Agotado' : level === 'low' ? `En o bajo el mínimo (${min} u.)` : `Mínimo: ${min} u.`}
     />
