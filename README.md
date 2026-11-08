@@ -43,13 +43,16 @@ Variables de `server/.env`:
 | `SITE_CODE` | Opcional. Si se define, el registro exige este código de sede |
 | `CORS_ORIGINS` | Opcional. Orígenes permitidos separados por comas |
 
-## Desarrollo
+## Uso local
+
+Con MongoDB encendido:
 
 ```bash
-npm run dev
+npm run app   # compila la interfaz y abre la app (uso diario)
+npm run dev   # modo desarrollo: recarga al guardar cambios
 ```
 
-Levanta el API en `http://localhost:3006`, React en `http://localhost:3000` y la ventana de Electron.
+Ambos levantan también el API en `http://localhost:3006`. Cierra la ventana o presiona `Ctrl+C` en la terminal para detener todo.
 
 ## Pruebas y calidad
 
