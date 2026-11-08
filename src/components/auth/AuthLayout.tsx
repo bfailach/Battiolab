@@ -29,7 +29,7 @@ const ChargingCell: React.FC = () => (
           key={i}
           sx={{
             borderRadius: '6px',
-            bgcolor: i < 8 ? brand.charge : i === 8 ? brand.magenta : 'rgba(255,255,255,0.1)',
+            bgcolor: i < 8 ? brand.charge : i === 8 ? brand.magenta : 'rgba(255,255,255,0.14)',
             transformOrigin: 'bottom',
             animation: i < 9 ? `${fill} 360ms cubic-bezier(.2,.8,.2,1) ${i * 90}ms both` : 'none'
           }}
@@ -41,8 +41,8 @@ const ChargingCell: React.FC = () => (
 );
 
 const AuthLayout: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
-  <Box sx={{ minHeight: '100vh', bgcolor: '#000', color: '#fff', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' } }}>
-    <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'space-between', p: { md: 6, lg: 8 } }}>
+  <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' } }}>
+    <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'space-between', p: { md: 6, lg: 8 }, bgcolor: brand.violet, color: '#FFFFFF' }}>
       <Logo size={30} />
       <Box>
         <Typography
@@ -51,12 +51,12 @@ const AuthLayout: React.FC<{ title: string; subtitle: string; children: React.Re
         >
           Carga completa para el taller y la tienda.
         </Typography>
-        <Typography sx={{ mt: 3, mb: 6, color: '#A3A3AA', maxWidth: 460, fontSize: '1.0625rem' }}>
+        <Typography sx={{ mt: 3, mb: 6, color: '#C9C3DD', maxWidth: 460, fontSize: '1.0625rem' }}>
           Ventas con factura, inventario de vehículos y repuestos, clientes y equipo de Battiolab.
         </Typography>
         <ChargingCell />
       </Box>
-      <Typography variant="caption" sx={{ color: '#6F6F76' }}>
+      <Typography variant="caption" sx={{ color: '#A69BDB' }}>
         Battiolab ERP 1.2
       </Typography>
     </Box>

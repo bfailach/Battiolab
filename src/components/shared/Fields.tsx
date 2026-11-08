@@ -234,7 +234,7 @@ export const ImageUpload: React.FC<{
           </Box>
         )}
         {busy && (
-          <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', bgcolor: 'rgba(0,0,0,0.55)' }}>
+          <Box sx={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', bgcolor: 'rgba(27,23,41,0.6)' }}>
             <CircularProgress size={28} sx={{ color: brand.charge }} />
           </Box>
         )}

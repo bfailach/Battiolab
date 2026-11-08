@@ -131,8 +131,8 @@ const Receivables: React.FC = () => {
                         p: 2,
                         borderRadius: 4,
                         cursor: 'pointer',
-                        bgcolor: active ? t.palette.text.primary : 'surface.raised',
-                        color: active ? t.palette.background.default : 'text.primary'
+                        bgcolor: active ? t.palette.selected.bg : 'surface.raised',
+                        color: active ? t.palette.selected.text : 'text.primary'
                       })}
                     >
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>

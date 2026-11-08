@@ -77,8 +77,8 @@ const ProductCatalog: React.FC = () => {
                     <Box sx={{ position: 'absolute', inset: 0 }}>
                       <ProductThumb imageUrl={p.imageUrl} category={p.category} size="100%" height="100%" radius={0} />
                     </Box>
-                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.88) 100%)' }} />
-                    <Box sx={{ position: 'absolute', top: 14, left: 14, px: 1.25, py: 0.25, borderRadius: 999, bgcolor: 'rgba(0,0,0,0.6)', color: '#fff' }}>
+                    <Box sx={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(27,23,41,0) 38%, rgba(27,23,41,0.92) 100%)' }} />
+                    <Box sx={{ position: 'absolute', top: 14, left: 14, px: 1.25, py: 0.25, borderRadius: 999, bgcolor: 'rgba(61,54,92,0.85)', color: '#fff' }}>
                       <Typography variant="caption" sx={{ fontWeight: 700 }}>
                         {p.category}
                       </Typography>

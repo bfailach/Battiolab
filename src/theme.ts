@@ -2,14 +2,13 @@ import { alpha, createTheme } from '@mui/material/styles';
 import { PaletteMode } from '@mui/material';
 
 /**
- * Battiolab: lienzo negro, tipografía blanca ancha y pesada, botones tipo píldora
- * y un solo acento de marca: el ámbar "carga".
+ * Paleta original de Battiolab: violeta #3D365C, magenta #C95792, ámbar #F8B55F y morado #7C4585.
+ * Tipografía ancha y pesada y botones tipo píldora.
  */
 export const brand = {
-  black: '#000000',
-  night: '#0F0F10',
-  raised: '#18181A',
+  night: '#1B1729',
   violet: '#3D365C',
+  violetLight: '#A69BDB',
   violetSoft: '#7C4585',
   magenta: '#C95792',
   charge: '#F8B55F',
@@ -26,11 +25,13 @@ export const wide = { fontFamily: displayFont, fontStretch: '115%', fontWeight: 
 declare module '@mui/material/styles' {
   interface Palette {
     line: string;
+    selected: { bg: string; text: string };
     surface: { base: string; raised: string; sunken: string };
     sidebar: { bg: string; text: string; muted: string; hover: string; active: string; activeText: string };
   }
   interface PaletteOptions {
     line?: string;
+    selected?: { bg: string; text: string };
     surface?: { base: string; raised: string; sunken: string };
     sidebar?: { bg: string; text: string; muted: string; hover: string; active: string; activeText: string };
   }
@@ -53,39 +54,42 @@ declare module '@mui/material/styles' {
 
 export const createAppTheme = (mode: PaletteMode) => {
   const dark = mode === 'dark';
-  const bg = dark ? '#000000' : '#F2F2F0';
-  const paper = dark ? '#0F0F10' : '#FFFFFF';
-  const raised = dark ? '#18181A' : '#F7F7F5';
-  const line = dark ? '#262628' : '#E2E2DE';
-  const text = dark ? '#FFFFFF' : '#0A0A0A';
-  const muted = dark ? '#9C9CA3' : '#5F5F66';
+  const bg = dark ? brand.night : '#F4F3F8';
+  const paper = dark ? '#242036' : '#FFFFFF';
+  const raised = dark ? '#2E2944' : '#F8F7FB';
+  const line = dark ? '#3B3553' : '#E4E2EC';
+  const text = dark ? '#F5F2FA' : '#2B2541';
+  const muted = dark ? '#ABA3C2' : '#625C78';
+  const primary = dark ? brand.magenta : brand.violet;
+  const primaryHover = dark ? '#B94B82' : '#2D284C';
 
   return createTheme({
     palette: {
       mode,
-      primary: { main: text, contrastText: dark ? '#000000' : '#FFFFFF' },
-      secondary: { main: brand.magenta, contrastText: '#FFFFFF' },
-      charge: { main: brand.charge, dark: '#E9A23F', light: '#FFD08C', contrastText: '#000000' },
+      primary: { main: primary, contrastText: '#FFFFFF' },
+      secondary: { main: dark ? brand.violetLight : brand.violetSoft, contrastText: dark ? brand.night : '#FFFFFF' },
+      charge: { main: brand.charge, dark: '#E9A23F', light: '#FFD08C', contrastText: brand.violet },
       warning: { main: brand.low },
       error: { main: brand.empty },
       success: { main: dark ? brand.ok : '#1F9D62' },
-      info: { main: dark ? '#7FB7FF' : '#2F6FD0' },
+      info: { main: dark ? brand.violetLight : brand.violetSoft },
       background: { default: bg, paper },
-      text: { primary: text, secondary: muted, disabled: dark ? '#5A5A60' : '#A8A8AE' },
+      text: { primary: text, secondary: muted, disabled: dark ? '#6E6787' : '#A8A3B8' },
       divider: line,
       action: {
-        hover: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)',
-        selected: dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.07)'
+        hover: dark ? 'rgba(255,255,255,0.06)' : 'rgba(61,54,92,0.05)',
+        selected: dark ? 'rgba(255,255,255,0.1)' : 'rgba(61,54,92,0.08)'
       },
       line,
-      surface: { base: paper, raised, sunken: dark ? '#080809' : '#EBEBE7' },
+      selected: { bg: brand.magenta, text: '#FFFFFF' },
+      surface: { base: paper, raised, sunken: dark ? '#15121F' : '#ECEAF2' },
       sidebar: {
-        bg: dark ? '#000000' : '#0A0A0A',
+        bg: brand.violet,
         text: '#FFFFFF',
-        muted: '#8E8E95',
-        hover: 'rgba(255,255,255,0.07)',
-        active: '#FFFFFF',
-        activeText: '#000000'
+        muted: '#C9C3DD',
+        hover: 'rgba(255,255,255,0.08)',
+        active: brand.charge,
+        activeText: brand.violet
       }
     },
     shape: { borderRadius: 4 },
@@ -110,7 +114,7 @@ export const createAppTheme = (mode: PaletteMode) => {
         styleOverrides: {
           body: { fontVariantNumeric: 'tabular-nums', backgroundColor: bg },
           '*:focus-visible': { outline: `2px solid ${brand.charge}`, outlineOffset: 2 },
-          '::selection': { background: brand.charge, color: '#000' },
+          '::selection': { background: brand.charge, color: brand.violet },
           '@media (prefers-reduced-motion: reduce)': {
             '*, *::before, *::after': { transition: 'none !important', animation: 'none !important' }
           },
@@ -128,8 +132,8 @@ export const createAppTheme = (mode: PaletteMode) => {
           root: { borderRadius: 999, paddingInline: 20, minHeight: 40, fontSize: '0.875rem' },
           sizeSmall: { minHeight: 32, paddingInline: 14, fontSize: '0.8125rem' },
           sizeLarge: { minHeight: 50, paddingInline: 28, fontSize: '0.9375rem' },
-          outlined: { borderColor: dark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.25)', '&:hover': { borderColor: text } },
-          containedPrimary: { '&:hover': { backgroundColor: dark ? '#E6E6E6' : '#2A2A2A' } }
+          outlined: { borderColor: dark ? 'rgba(255,255,255,0.3)' : 'rgba(61,54,92,0.3)', color: text, '&:hover': { borderColor: text } },
+          containedPrimary: { '&:hover': { backgroundColor: primaryHover } }
         }
       },
       MuiIconButton: { styleOverrides: { root: { borderRadius: 999 } } },
@@ -147,7 +151,7 @@ export const createAppTheme = (mode: PaletteMode) => {
             border: 0,
             paddingInline: 14,
             color: muted,
-            '&.Mui-selected': { backgroundColor: text, color: dark ? '#000' : '#fff', '&:hover': { backgroundColor: text } }
+            '&.Mui-selected': { backgroundColor: brand.magenta, color: '#FFFFFF', '&:hover': { backgroundColor: '#B94B82' } }
           },
           sizeSmall: { paddingTop: 5, paddingBottom: 5 }
         }
@@ -161,8 +165,8 @@ export const createAppTheme = (mode: PaletteMode) => {
             borderRadius: 12,
             backgroundColor: raised,
             '& .MuiOutlinedInput-notchedOutline': { borderColor: line },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: dark ? '#4A4A4F' : '#B5B5B0' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: brand.charge, borderWidth: 1.5 }
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: dark ? '#5A5276' : '#BDB7CF' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: primary, borderWidth: 1.5 }
           },
           input: { '&::placeholder': { color: muted, opacity: 0.8 } }
         }
@@ -173,7 +177,7 @@ export const createAppTheme = (mode: PaletteMode) => {
           root: { fontWeight: 600, borderRadius: 999 },
           sizeSmall: { height: 24 },
           outlined: { borderColor: line },
-          filled: { '&.MuiChip-colorPrimary': { backgroundColor: text, color: dark ? '#000' : '#fff' } }
+          filled: { '&.MuiChip-colorPrimary': { backgroundColor: brand.magenta, color: '#FFFFFF' } }
         }
       },
       MuiTableCell: {
@@ -183,7 +187,7 @@ export const createAppTheme = (mode: PaletteMode) => {
         }
       },
       MuiTableRow: {
-        styleOverrides: { hover: { '&:hover': { backgroundColor: dark ? 'rgba(255,255,255,0.035)' : 'rgba(0,0,0,0.025)' } } }
+        styleOverrides: { hover: { '&:hover': { backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(61,54,92,0.035)' } } }
       },
       MuiTableSortLabel: { styleOverrides: { root: { '&.Mui-active': { color: text } } } },
       MuiDialog: {
@@ -198,13 +202,13 @@ export const createAppTheme = (mode: PaletteMode) => {
       MuiMenu: { styleOverrides: { paper: { borderRadius: 16, border: `1px solid ${line}`, backgroundColor: raised } } },
       MuiAutocomplete: { styleOverrides: { paper: { borderRadius: 14, border: `1px solid ${line}`, backgroundColor: raised } } },
       MuiPopover: { styleOverrides: { paper: { backgroundImage: 'none' } } },
-      MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 700, minHeight: 44, fontSize: '0.9375rem' } } },
+      MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 700, minHeight: 44, fontSize: '0.9375rem', '&.Mui-selected': { color: text } } } },
       MuiTabs: { styleOverrides: { root: { minHeight: 44 }, indicator: { height: 3, borderRadius: 3, backgroundColor: brand.charge } } },
-      MuiTooltip: { styleOverrides: { tooltip: { fontSize: '0.75rem', backgroundColor: dark ? '#2A2A2D' : '#0A0A0A', borderRadius: 8 } } },
+      MuiTooltip: { styleOverrides: { tooltip: { fontSize: '0.75rem', backgroundColor: brand.violet, borderRadius: 8 } } },
       MuiAlert: {
         styleOverrides: {
           root: { borderRadius: 14, alignItems: 'center' },
-          standardInfo: { backgroundColor: alpha('#7FB7FF', dark ? 0.1 : 0.12) },
+          standardInfo: { backgroundColor: alpha(brand.violetLight, dark ? 0.12 : 0.18) },
           standardWarning: { backgroundColor: alpha(brand.low, dark ? 0.12 : 0.14) },
           standardError: { backgroundColor: alpha(brand.empty, dark ? 0.12 : 0.1) },
           standardSuccess: { backgroundColor: alpha(brand.ok, dark ? 0.1 : 0.12) }
@@ -212,7 +216,7 @@ export const createAppTheme = (mode: PaletteMode) => {
       },
       MuiSwitch: {
         styleOverrides: {
-          switchBase: { '&.Mui-checked': { color: '#000', '& + .MuiSwitch-track': { backgroundColor: brand.charge, opacity: 1 } } },
+          switchBase: { '&.Mui-checked': { color: '#FFFFFF', '& + .MuiSwitch-track': { backgroundColor: brand.magenta, opacity: 1 } } },
           thumb: { boxShadow: 'none' },
           track: { borderRadius: 10 }
         }

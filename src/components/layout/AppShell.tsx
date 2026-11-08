@@ -145,7 +145,7 @@ const Sidebar: React.FC<{ onNavigate?: () => void }> = ({ onNavigate }) => {
                           <Box
                             component="span"
                             aria-label={`${count} pendientes`}
-                            sx={{ minWidth: 22, px: 0.75, borderRadius: 999, bgcolor: brand.charge, color: '#000', fontSize: '0.75rem', fontWeight: 800, lineHeight: '20px', textAlign: 'center' }}
+                            sx={{ minWidth: 22, px: 0.75, borderRadius: 999, bgcolor: brand.charge, color: brand.violet, fontSize: '0.75rem', fontWeight: 800, lineHeight: '20px', textAlign: 'center' }}
                           >
                             {count}
                           </Box>
@@ -183,7 +183,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
       {isDesktop ? (
-        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: 'sidebar.bg', borderRight: `1px solid ${alpha('#FFFFFF', 0.08)}` }}>
+        <Box sx={{ width: SIDEBAR_WIDTH, flexShrink: 0, bgcolor: 'sidebar.bg', borderRight: 'none' }}>
           <Box sx={{ position: 'sticky', top: 0, height: '100vh' }}>
             <Sidebar />
           </Box>
@@ -245,7 +245,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </Tooltip>
           <Tooltip title="Tu cuenta">
             <IconButton onClick={(e) => setMenuEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
-              <Avatar sx={{ width: 36, height: 36, bgcolor: 'text.primary', color: 'background.default', fontSize: 14, fontWeight: 800 }}>
+              <Avatar sx={{ width: 36, height: 36, bgcolor: brand.magenta, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>
                 {initials(displayName)}
               </Avatar>
             </IconButton>

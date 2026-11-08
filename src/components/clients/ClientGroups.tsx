@@ -90,10 +90,10 @@ const ClientGroups: React.FC = () => {
                         px: 2,
                         py: 1.5,
                         borderRadius: 4,
-                        bgcolor: active ? t.palette.text.primary : 'transparent',
-                        color: active ? t.palette.background.default : t.palette.text.primary,
+                        bgcolor: active ? t.palette.selected.bg : 'transparent',
+                        color: active ? t.palette.selected.text : t.palette.text.primary,
                         transition: 'background-color 120ms',
-                        '&:hover': { bgcolor: active ? t.palette.text.primary : t.palette.action.hover }
+                        '&:hover': { bgcolor: active ? t.palette.selected.bg : t.palette.action.hover }
                       })}
                     >
                       <Typography component="span" sx={{ ...wide, fontSize: '1.75rem', lineHeight: 1, opacity: count ? 1 : 0.4 }}>
