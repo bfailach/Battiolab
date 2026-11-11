@@ -1,15 +1,5 @@
 <p align="center">
-  <img src="docs/assets/banner.svg" alt="Battiolab ERP" width="100%">
-</p>
-
-<p align="center">
-  <a href="https://github.com/bfailach/Battiolab/actions/workflows/nodejs-ci.yml"><img src="https://github.com/bfailach/Battiolab/actions/workflows/nodejs-ci.yml/badge.svg?branch=master" alt="CI"></a>
-  <img src="https://img.shields.io/badge/versión-1.2.0-3D365C" alt="Versión 1.2.0">
-  <img src="https://img.shields.io/badge/Electron-45-47848F?logo=electron&logoColor=white" alt="Electron 45">
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black" alt="React 18">
-  <img src="https://img.shields.io/badge/TypeScript-4.9-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/MongoDB-6+-47A248?logo=mongodb&logoColor=white" alt="MongoDB">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/licencia-ISC-F8B55F" alt="Licencia ISC"></a>
+  <img src="docs/assets/banner.svg" alt="battiolab" width="100%">
 </p>
 
 <p align="center">
