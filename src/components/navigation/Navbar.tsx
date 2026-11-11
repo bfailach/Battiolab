@@ -6,7 +6,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import authService from '../../services/auth.service';
 
 const StyledAppBar = styled(AppBar)({
-  backgroundColor: '#3D365C',
+  backgroundColor: '#1E1B4B',
   boxShadow: 'none',
 });
 
@@ -16,7 +16,7 @@ const NavButton = styled(Button)({
   fontSize: '16px',
   fontWeight: 700,
   '&.active': {
-    color: '#F8B55F',
+    color: '#F59E0B',
   },
 });
 

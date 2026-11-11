@@ -64,11 +64,11 @@ const moduleCount = (m: NavModule, badges: Record<BadgeKey, number>) =>
 
 /** Vidrio ahumado: violeta oscuro translúcido con desenfoque del contenido que pasa por debajo. */
 const smokedGlass: SxProps<Theme> = {
-  bgcolor: alpha('#1E1A2E', 0.62),
+  bgcolor: alpha('#16143A', 0.62),
   backdropFilter: 'blur(22px) saturate(160%)',
   WebkitBackdropFilter: 'blur(22px) saturate(160%)',
   border: `1px solid ${alpha('#FFFFFF', 0.1)}`,
-  boxShadow: `0 12px 32px ${alpha('#0E0B18', 0.35)}, inset 0 1px 0 ${alpha('#FFFFFF', 0.06)}`,
+  boxShadow: `0 12px 32px ${alpha('#0A0920', 0.35)}, inset 0 1px 0 ${alpha('#FFFFFF', 0.06)}`,
   color: '#FFFFFF'
 };
 
@@ -76,7 +76,7 @@ const Count: React.FC<{ n: number }> = ({ n }) => (
   <Box
     component="span"
     aria-label={`${n} pendientes`}
-    sx={{ minWidth: 20, px: 0.6, borderRadius: 999, bgcolor: brand.charge, color: brand.violet, fontSize: '0.6875rem', fontWeight: 800, lineHeight: '18px', textAlign: 'center' }}
+    sx={{ minWidth: 20, px: 0.6, borderRadius: 999, bgcolor: brand.charge, color: brand.ink, fontSize: '0.6875rem', fontWeight: 800, lineHeight: '18px', textAlign: 'center' }}
   >
     {n}
   </Box>
@@ -134,10 +134,10 @@ const NavItem: React.FC<{ module: NavModule; active: boolean; activeChild?: stri
           borderRadius: 999,
           fontWeight: 700,
           fontSize: '0.875rem',
-          color: active ? brand.violet : alpha('#FFFFFF', 0.8),
+          color: active ? brand.ink : alpha('#FFFFFF', 0.8),
           bgcolor: active ? brand.charge : open ? alpha('#FFFFFF', 0.08) : 'transparent',
           transition: 'background-color 140ms, color 140ms',
-          '&:hover': { color: active ? brand.violet : '#FFFFFF', bgcolor: active ? brand.charge : alpha('#FFFFFF', 0.08) },
+          '&:hover': { color: active ? brand.ink : '#FFFFFF', bgcolor: active ? brand.charge : alpha('#FFFFFF', 0.08) },
           '& svg': { fontSize: 18 }
         }}
       >
@@ -280,7 +280,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.75 }}>
             {pathname !== '/dashboard/sales/new' &&
               (roomy ? (
-                <Button variant="contained" color="charge" startIcon={<AddIcon />} onClick={() => navigate('/dashboard/sales/new')} sx={{ height: 40 }}>
+                <Button variant="contained" color="primary" startIcon={<AddIcon />} onClick={() => navigate('/dashboard/sales/new')} sx={{ height: 40 }}>
                   Nueva venta
                 </Button>
               ) : (
@@ -288,7 +288,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   <IconButton
                     onClick={() => navigate('/dashboard/sales/new')}
                     aria-label="Nueva venta"
-                    sx={{ width: 40, height: 40, bgcolor: brand.charge, color: brand.violet, '&:hover': { bgcolor: '#E9A23F' } }}
+                    sx={{ width: 40, height: 40, bgcolor: brand.charge, color: brand.ink, '&:hover': { bgcolor: brand.chargeDark } }}
                   >
                     <AddIcon />
                   </IconButton>
@@ -296,7 +296,7 @@ const AppShell: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               ))}
             <Tooltip title="Tu cuenta">
               <IconButton onClick={(e) => setAccountEl(e.currentTarget)} aria-label="Abrir menú de cuenta" sx={{ p: 0.5 }}>
-                <Avatar sx={{ width: 38, height: 38, bgcolor: brand.magenta, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>{initials(displayName)}</Avatar>
+                <Avatar sx={{ width: 38, height: 38, bgcolor: brand.primary, color: '#FFFFFF', fontSize: 14, fontWeight: 800 }}>{initials(displayName)}</Avatar>
               </IconButton>
             </Tooltip>
           </Box>

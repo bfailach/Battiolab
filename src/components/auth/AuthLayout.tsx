@@ -5,44 +5,39 @@ import Logo from '../shared/Logo';
 import { brand, wide } from '../../theme';
 
 const fill = keyframes`
-  from { opacity: 0.1; transform: scaleY(0.6); }
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+`;
+
+const spark = keyframes`
+  from { opacity: 0; transform: scaleY(0.6); }
   to { opacity: 1; transform: scaleY(1); }
 `;
 
-/** La única animación de entrada: la celda se carga segmento a segmento. */
+/** La única animación de entrada: la celda del logo se carga y al final aparece la chispa ámbar. */
 const ChargingCell: React.FC = () => (
-  <Box aria-hidden sx={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-    <Box
-      sx={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(10, 1fr)',
-        gap: '7px',
-        p: '9px',
-        width: { md: 420, lg: 520 },
-        height: 104,
-        border: '3px solid #FFFFFF',
-        borderRadius: '18px'
-      }}
-    >
-      {Array.from({ length: 10 }).map((_, i) => (
-        <Box
-          key={i}
-          sx={{
-            borderRadius: '6px',
-            bgcolor: i < 8 ? brand.charge : i === 8 ? brand.magenta : 'rgba(255,255,255,0.14)',
-            transformOrigin: 'bottom',
-            animation: i < 9 ? `${fill} 360ms cubic-bezier(.2,.8,.2,1) ${i * 90}ms both` : 'none'
-          }}
-        />
-      ))}
-    </Box>
-    <Box sx={{ width: 12, height: 40, bgcolor: '#FFFFFF', borderRadius: '0 6px 6px 0' }} />
+  <Box
+    aria-hidden
+    sx={{
+      display: 'grid',
+      gridTemplateColumns: '10.6fr 4.1fr',
+      gap: '14px',
+      p: '14px',
+      width: { md: 420, lg: 520 },
+      height: 120,
+      border: '4px solid #FFFFFF',
+      borderRadius: '26px',
+      boxSizing: 'border-box'
+    }}
+  >
+    <Box sx={{ borderRadius: '9px', bgcolor: brand.primarySoft, transformOrigin: 'left', animation: `${fill} 700ms cubic-bezier(.2,.8,.2,1) both` }} />
+    <Box sx={{ borderRadius: '8px', bgcolor: brand.charge, transformOrigin: 'bottom', animation: `${spark} 320ms cubic-bezier(.2,.8,.2,1) 650ms both` }} />
   </Box>
 );
 
 const AuthLayout: React.FC<{ title: string; subtitle: string; children: React.ReactNode }> = ({ title, subtitle, children }) => (
   <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', color: 'text.primary', display: 'grid', gridTemplateColumns: { xs: '1fr', md: '7fr 5fr' } }}>
-    <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'space-between', p: { md: 6, lg: 8 }, bgcolor: brand.violet, color: '#FFFFFF' }}>
+    <Box sx={{ display: { xs: 'none', md: 'flex' }, flexDirection: 'column', justifyContent: 'space-between', p: { md: 6, lg: 8 }, bgcolor: brand.ink, color: '#FFFFFF' }}>
       <Logo size={30} />
       <Box>
         <Typography
@@ -51,12 +46,12 @@ const AuthLayout: React.FC<{ title: string; subtitle: string; children: React.Re
         >
           Carga completa para el taller y la tienda.
         </Typography>
-        <Typography sx={{ mt: 3, mb: 6, color: '#C9C3DD', maxWidth: 460, fontSize: '1.0625rem' }}>
+        <Typography sx={{ mt: 3, mb: 6, color: '#C7C5E0', maxWidth: 460, fontSize: '1.0625rem' }}>
           Ventas con factura, inventario de vehículos y repuestos, clientes y equipo de Battiolab.
         </Typography>
         <ChargingCell />
       </Box>
-      <Typography variant="caption" sx={{ color: '#A69BDB' }}>
+      <Typography variant="caption" sx={{ color: '#A5B4FC' }}>
         Battiolab ERP 1.2
       </Typography>
     </Box>
