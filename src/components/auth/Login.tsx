@@ -68,7 +68,7 @@ const Login: React.FC = () => {
               )
             }}
           />
-          <Button type="submit" variant="contained" color="charge" size="large" disabled={submitting}>
+          <Button type="submit" variant="contained" color="primary" size="large" disabled={submitting}>
             {submitting ? 'Entrando…' : 'Entrar'}
           </Button>
         </Stack>

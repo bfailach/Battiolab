@@ -60,23 +60,23 @@ export const invoiceHtml = (sale: Sale, c: CompanySettings) => {
   * { box-sizing: border-box; }
   body { font-family: "Figtree Variable", "Segoe UI", system-ui, sans-serif; color: #111; margin: 0; padding: 28px; font-size: 11.5px; line-height: 1.45; background: #fff; }
   .top { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
-  .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 2px; color: #3D365C; }
+  .brand { font-size: 22px; font-weight: 800; letter-spacing: -0.01em; margin: 0 0 2px; color: #1E1B4B; }
   .m { color: #666; }
-  .box { border: 1.5px solid #3D365C; border-top: 6px solid #3D365C; border-radius: 10px; padding: 12px 14px; }
-  .doc-title { font-size: 12px; font-weight: 800; margin: 0; color: #C95792; }
-  .doc-number { font-size: 26px; font-weight: 800; margin: 2px 0 8px; letter-spacing: -0.01em; color: #3D365C; }
+  .box { border: 1.5px solid #1E1B4B; border-top: 6px solid #1E1B4B; border-radius: 10px; padding: 12px 14px; }
+  .doc-title { font-size: 12px; font-weight: 800; margin: 0; color: #4338CA; }
+  .doc-number { font-size: 26px; font-weight: 800; margin: 2px 0 8px; letter-spacing: -0.01em; color: #1E1B4B; }
   .kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
   .kv span:nth-child(odd) { color: #666; }
-  .res { margin: 14px 0; padding: 8px 12px; background: #F4F3F8; border-left: 4px solid #F8B55F; border-radius: 8px; font-size: 10.5px; }
+  .res { margin: 14px 0; padding: 8px 12px; background: #F7F7FB; border-left: 4px solid #F59E0B; border-radius: 8px; font-size: 10.5px; }
   h3 { font-size: 11px; margin: 18px 0 6px; color: #666; font-weight: 700; }
   .buyer { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 24px; }
   table { width: 100%; border-collapse: collapse; }
-  .items th { text-align: left; font-size: 10px; color: #666; font-weight: 700; padding: 6px 6px; border-bottom: 1.5px solid #3D365C; }
+  .items th { text-align: left; font-size: 10px; color: #666; font-weight: 700; padding: 6px 6px; border-bottom: 1.5px solid #1E1B4B; }
   .items td { padding: 7px 6px; border-bottom: 1px solid #e3e3e0; vertical-align: top; }
   .r { text-align: right; white-space: nowrap; } .c { text-align: center; } .b { font-weight: 700; }
   .bottom { display: grid; grid-template-columns: 1fr 300px; gap: 24px; margin-top: 16px; align-items: start; }
   .totals td { padding: 4px 0; }
-  .grand td { color: #3D365C; border-top: 2px solid #3D365C; padding-top: 8px; font-size: 16px; font-weight: 800; }
+  .grand td { color: #1E1B4B; border-top: 2px solid #1E1B4B; padding-top: 8px; font-size: 16px; font-weight: 800; }
   .words { font-weight: 700; }
   .cufe { margin-top: 18px; display: grid; grid-template-columns: 84px 1fr; gap: 12px; align-items: center; border-top: 1px solid #e3e3e0; padding-top: 12px; font-size: 10px; }
   .qr { width: 84px; height: 84px; border: 1.5px dashed #999; border-radius: 6px; display: grid; place-items: center; text-align: center; color: #888; font-size: 9px; padding: 4px; }

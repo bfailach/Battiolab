@@ -5,7 +5,7 @@ import { brand } from '../../theme';
 export const useChartStyle = () => {
   const theme = useTheme();
   return {
-    colors: [brand.charge, brand.magenta, brand.violetLight, brand.violetSoft, brand.ok, '#6FAEDB'],
+    colors: [brand.primaryMuted, brand.charge, brand.primarySoft, brand.ok, '#6FAEDB', '#C7C5E0'],
     grid: theme.palette.divider,
     axis: { fontSize: 12, fill: theme.palette.text.secondary },
     tooltip: {
