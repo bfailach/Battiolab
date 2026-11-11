@@ -2,11 +2,6 @@
   <img src="docs/assets/banner.svg" alt="battiolab" width="100%">
 </p>
 
-<p align="center">
-  Aplicación de escritorio para <b>Battiolab</b>, empresa de venta y reparación de vehículos eléctricos.<br>
-  Centraliza ventas con facturación según la normativa colombiana, inventario por lotes, cartera, clientes y nómina.
-</p>
-
 ---
 
 ## Contenido
