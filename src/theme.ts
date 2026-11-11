@@ -1,16 +1,20 @@
 import { alpha, createTheme } from '@mui/material/styles';
 
 /**
- * Paleta original de Battiolab: violeta #3D365C, magenta #C95792, ámbar #F8B55F y morado #7C4585.
+ * Paleta Battiolab "Índigo profundo": tinta índigo #1E1B4B, índigo #4338CA como primario
+ * y ámbar #F59E0B solo como la chispa de carga (logo, navegación activa, avisos puntuales).
  * Tipografía ancha y pesada y botones tipo píldora.
  */
 export const brand = {
-  night: '#1B1729',
-  violet: '#3D365C',
-  violetLight: '#A69BDB',
-  violetSoft: '#7C4585',
-  magenta: '#C95792',
-  charge: '#F8B55F',
+  night: '#121029',
+  ink: '#1E1B4B',
+  primary: '#4F46E5',
+  primaryHover: '#4338CA',
+  primarySoft: '#A5B4FC',
+  primaryMuted: '#818CF8',
+  charge: '#F59E0B',
+  chargeDark: '#D97706',
+  chargeLight: '#FCD34D',
   ok: '#3DD68C',
   low: '#F5A524',
   empty: '#FF5A5F'
@@ -54,41 +58,41 @@ declare module '@mui/material/styles' {
 /** Battiolab usa solo tema oscuro. */
 export const createAppTheme = () => {
   const bg = brand.night;
-  const paper = '#242036';
-  const raised = '#2E2944';
-  const line = '#3B3553';
-  const text = '#F5F2FA';
-  const muted = '#ABA3C2';
-  const primary = brand.magenta;
-  const primaryHover = '#B94B82';
+  const paper = '#1A1838';
+  const raised = '#232047';
+  const line = '#322E5C';
+  const text = '#F4F4FB';
+  const muted = '#A9A7C9';
+  const primary = brand.primary;
+  const primaryHover = brand.primaryHover;
 
   return createTheme({
     palette: {
       mode: 'dark',
       primary: { main: primary, contrastText: '#FFFFFF' },
-      secondary: { main: brand.violetLight, contrastText: brand.night },
-      charge: { main: brand.charge, dark: '#E9A23F', light: '#FFD08C', contrastText: brand.violet },
+      secondary: { main: brand.primarySoft, contrastText: brand.ink },
+      charge: { main: brand.charge, dark: brand.chargeDark, light: brand.chargeLight, contrastText: brand.ink },
       warning: { main: brand.low },
       error: { main: brand.empty },
       success: { main: brand.ok },
-      info: { main: brand.violetLight },
+      info: { main: brand.primarySoft },
       background: { default: bg, paper },
-      text: { primary: text, secondary: muted, disabled: '#6E6787' },
+      text: { primary: text, secondary: muted, disabled: '#6A6890' },
       divider: line,
       action: {
         hover: 'rgba(255,255,255,0.06)',
         selected: 'rgba(255,255,255,0.1)'
       },
       line,
-      selected: { bg: brand.magenta, text: '#FFFFFF' },
-      surface: { base: paper, raised, sunken: '#15121F' },
+      selected: { bg: brand.primary, text: '#FFFFFF' },
+      surface: { base: paper, raised, sunken: '#0D0B1F' },
       sidebar: {
-        bg: brand.violet,
+        bg: brand.ink,
         text: '#FFFFFF',
-        muted: '#C9C3DD',
+        muted: '#C7C5E0',
         hover: 'rgba(255,255,255,0.08)',
         active: brand.charge,
-        activeText: brand.violet
+        activeText: brand.ink
       }
     },
     shape: { borderRadius: 4 },
@@ -113,21 +117,21 @@ export const createAppTheme = () => {
         styleOverrides: {
           body: { fontVariantNumeric: 'tabular-nums', backgroundColor: bg },
           '*:focus-visible': { outline: `2px solid ${brand.charge}`, outlineOffset: 2 },
-          '::selection': { background: brand.charge, color: brand.violet },
+          '::selection': { background: brand.charge, color: brand.ink },
           '@media (prefers-reduced-motion: reduce)': {
             '*, *::before, *::after': { transition: 'none !important', animation: 'none !important' }
           },
           // El espacio del scroll queda reservado: el contenido no salta al cambiar entre páginas largas y cortas
-          html: { scrollbarGutter: 'stable', scrollbarWidth: 'thin', scrollbarColor: `${'#4A4366'} transparent` },
+          html: { scrollbarGutter: 'stable', scrollbarWidth: 'thin', scrollbarColor: `${'#3D3970'} transparent` },
           '::-webkit-scrollbar': { width: 10, height: 10 },
           '::-webkit-scrollbar-track': { background: 'transparent' },
           '::-webkit-scrollbar-thumb': {
-            backgroundColor: '#4A4366',
+            backgroundColor: '#3D3970',
             borderRadius: 999,
             border: '3px solid transparent',
             backgroundClip: 'content-box'
           },
-          '::-webkit-scrollbar-thumb:hover': { backgroundColor: brand.magenta },
+          '::-webkit-scrollbar-thumb:hover': { backgroundColor: brand.primary },
           '::-webkit-scrollbar-corner': { background: 'transparent' },
           'input[type=number]': { MozAppearance: 'textfield' },
           'input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button': { WebkitAppearance: 'none', margin: 0 }
@@ -162,22 +166,22 @@ export const createAppTheme = () => {
             border: 0,
             paddingInline: 14,
             color: muted,
-            '&.Mui-selected': { backgroundColor: brand.magenta, color: '#FFFFFF', '&:hover': { backgroundColor: '#B94B82' } }
+            '&.Mui-selected': { backgroundColor: brand.primary, color: '#FFFFFF', '&:hover': { backgroundColor: brand.primaryHover } }
           },
           sizeSmall: { paddingTop: 5, paddingBottom: 5 }
         }
       },
       MuiTextField: { defaultProps: { size: 'small', fullWidth: true } },
       MuiFormControl: { defaultProps: { size: 'small' } },
-      MuiInputLabel: { styleOverrides: { root: { fontWeight: 500 } } },
+      MuiInputLabel: { styleOverrides: { root: { fontWeight: 500, '&.Mui-focused': { color: brand.primarySoft } } } },
       MuiOutlinedInput: {
         styleOverrides: {
           root: {
             borderRadius: 12,
             backgroundColor: raised,
             '& .MuiOutlinedInput-notchedOutline': { borderColor: line },
-            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#5A5276' },
-            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: primary, borderWidth: 1.5 }
+            '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4A4690' },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: brand.primaryMuted, borderWidth: 1.5 }
           },
           input: { '&::placeholder': { color: muted, opacity: 0.8 } }
         }
@@ -188,7 +192,7 @@ export const createAppTheme = () => {
           root: { fontWeight: 600, borderRadius: 999 },
           sizeSmall: { height: 24 },
           outlined: { borderColor: line },
-          filled: { '&.MuiChip-colorPrimary': { backgroundColor: brand.magenta, color: '#FFFFFF' } }
+          filled: { '&.MuiChip-colorPrimary': { backgroundColor: brand.primary, color: '#FFFFFF' } }
         }
       },
       MuiTableCell: {
@@ -215,11 +219,11 @@ export const createAppTheme = () => {
       MuiPopover: { styleOverrides: { paper: { backgroundImage: 'none' } } },
       MuiTab: { styleOverrides: { root: { textTransform: 'none', fontWeight: 700, minHeight: 44, fontSize: '0.9375rem', '&.Mui-selected': { color: text } } } },
       MuiTabs: { styleOverrides: { root: { minHeight: 44 }, indicator: { height: 3, borderRadius: 3, backgroundColor: brand.charge } } },
-      MuiTooltip: { styleOverrides: { tooltip: { fontSize: '0.75rem', backgroundColor: brand.violet, borderRadius: 8 } } },
+      MuiTooltip: { styleOverrides: { tooltip: { fontSize: '0.75rem', backgroundColor: brand.ink, borderRadius: 8 } } },
       MuiAlert: {
         styleOverrides: {
           root: { borderRadius: 14, alignItems: 'center' },
-          standardInfo: { backgroundColor: alpha(brand.violetLight, 0.12) },
+          standardInfo: { backgroundColor: alpha(brand.primarySoft, 0.12) },
           standardWarning: { backgroundColor: alpha(brand.low, 0.12) },
           standardError: { backgroundColor: alpha(brand.empty, 0.12) },
           standardSuccess: { backgroundColor: alpha(brand.ok, 0.1) }
@@ -227,7 +231,7 @@ export const createAppTheme = () => {
       },
       MuiSwitch: {
         styleOverrides: {
-          switchBase: { '&.Mui-checked': { color: '#FFFFFF', '& + .MuiSwitch-track': { backgroundColor: brand.magenta, opacity: 1 } } },
+          switchBase: { '&.Mui-checked': { color: '#FFFFFF', '& + .MuiSwitch-track': { backgroundColor: brand.primary, opacity: 1 } } },
           thumb: { boxShadow: 'none' },
           track: { borderRadius: 10 }
         }

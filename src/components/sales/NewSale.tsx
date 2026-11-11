@@ -190,7 +190,7 @@ const NewSale: React.FC = () => {
           {done.paymentForm === 'credito' ? `A crédito, vence el ${formatDate(done.dueDate)}.` : `Pagada con ${done.paymentMethod?.toLowerCase()}.`} El inventario ya se descontó.
         </Typography>
         <Stack direction="row" spacing={1} useFlexGap sx={{ mt: 4, flexWrap: 'wrap' }}>
-          <Button variant="contained" color="charge" size="large" startIcon={<DescriptionOutlinedIcon />} onClick={() => setInvoiceOpen(true)}>
+          <Button variant="contained" color="primary" size="large" startIcon={<DescriptionOutlinedIcon />} onClick={() => setInvoiceOpen(true)}>
             Ver e imprimir factura
           </Button>
           <Button variant="outlined" size="large" startIcon={<AddIcon />} onClick={reset}>
@@ -397,7 +397,7 @@ const NewSale: React.FC = () => {
                     </Box>
                   </Box>
                   {error && <Alert severity="error">{error}</Alert>}
-                  <Button variant="contained" color="charge" size="large" onClick={submit} disabled={submitting}>
+                  <Button variant="contained" color="primary" size="large" onClick={submit} disabled={submitting}>
                     {submitting ? 'Registrando…' : 'Registrar venta y facturar'}
                   </Button>
                 </Stack>
