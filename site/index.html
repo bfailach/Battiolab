@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>battiolab · Gestión para tiendas y talleres de vehículos eléctricos</title>
+<meta name="description" content="Aplicación de escritorio para ventas con facturación DIAN, inventario por lotes, cartera, clientes y nómina de una tienda y taller de vehículos eléctricos en Colombia.">
+<meta name="theme-color" content="#1E1B4B">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta property="og:title" content="battiolab">
+<meta property="og:description" content="Ventas con facturación DIAN, inventario por lotes, cartera, clientes y nómina.">
+<meta property="og:image" content="https://bfailach.github.io/Battiolab/screenshots/inicio.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,600..900&family=Figtree:wght@400..700&display=swap">
+<style>
+  :root {
+    --ink: #1E1B4B;
+    --night: #121029;
+    --paper: #1A1838;
+    --raised: #232047;
+    --line: #322E5C;
+    --text: #F4F4FB;
+    --muted: #A9A7C9;
+    --primary: #4F46E5;
+    --primary-hover: #4338CA;
+    --soft: #A5B4FC;
+    --charge: #F59E0B;
+    --wide: "Archivo", "Figtree", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--night);
+    color: var(--text);
+    font: 400 17px/1.6 "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--soft); text-underline-offset: 3px; }
+  a:hover { color: #FFFFFF; }
+  :focus-visible { outline: 2px solid var(--charge); outline-offset: 3px; border-radius: 4px; }
+  img { display: block; max-width: 100%; height: auto; }
+  code { font: 500 0.88em ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; color: #E0E3FF; }
+  .wrap { width: min(1200px, 100% - 48px); margin-inline: auto; }
+
+  /* Navegación */
+  .nav { position: sticky; top: 0; z-index: 10; background: rgba(18, 16, 41, 0.86); backdrop-filter: blur(12px); border-bottom: 1px solid var(--line); }
+  .nav .wrap { display: flex; align-items: center; justify-content: space-between; gap: 24px; min-height: 68px; }
+  .brand { display: inline-flex; align-items: center; gap: 10px; color: #FFFFFF; text-decoration: none; font-family: var(--wide); font-stretch: 115%; font-weight: 800; font-size: 21px; letter-spacing: -0.02em; }
+  .nav ul { display: flex; gap: 6px; margin: 0; padding: 0; list-style: none; flex-wrap: wrap; }
+  .nav ul a { display: inline-block; padding: 10px 14px; border-radius: 999px; color: var(--muted); text-decoration: none; font-weight: 600; font-size: 15px; }
+  .nav ul a:hover { color: #FFFFFF; background: rgba(255, 255, 255, 0.06); }
+  .nav ul a.repo { color: #FFFFFF; background: var(--primary); }
+  .nav ul a.repo:hover { background: var(--primary-hover); }
+  @media (max-width: 760px) { .nav ul li:not(:last-child) { display: none; } }
+
+  /* Portada */
+  .hero { padding: 96px 0 56px; background: var(--ink); border-bottom: 1px solid var(--line); }
+  .eyebrow { margin: 0 0 18px; color: var(--soft); font-weight: 700; font-size: 14px; letter-spacing: 0.08em; text-transform: uppercase; }
+  h1, h2, h3 { font-family: var(--wide); font-stretch: 115%; letter-spacing: -0.02em; margin: 0; }
+  h1 { font-weight: 900; font-stretch: 125%; font-size: clamp(2.5rem, 6vw, 4.75rem); line-height: 0.98; letter-spacing: -0.03em; max-width: 15ch; }
+  .lead { margin: 24px 0 0; max-width: 62ch; color: #C7C5E0; font-size: 19px; }
+  .actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 36px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 24px; border-radius: 999px; font-weight: 700; font-size: 16px; text-decoration: none; }
+  .btn-primary { background: var(--primary); color: #FFFFFF; }
+  .btn-primary:hover { background: var(--primary-hover); color: #FFFFFF; }
+  .btn-ghost { border: 1.5px solid rgba(255, 255, 255, 0.3); color: #FFFFFF; }
+  .btn-ghost:hover { border-color: #FFFFFF; }
+  .shot { margin-top: 64px; border-radius: 18px; overflow: hidden; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(5, 4, 20, 0.55); }
+
+  /* Secciones */
+  section { padding: 96px 0; border-bottom: 1px solid var(--line); }
+  .section-head { display: grid; gap: 14px; margin-bottom: 48px; max-width: 760px; }
+  h2 { font-weight: 800; font-size: clamp(2rem, 4vw, 2.75rem); line-height: 1.05; }
+  .section-head p { margin: 0; color: var(--muted); font-size: 18px; }
+
+  .facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .facts div { padding: 28px 24px 28px 0; }
+  .facts div + div { padding-left: 24px; border-left: 1px solid var(--line); }
+  .facts strong { display: block; font-family: var(--wide); font-stretch: 115%; font-weight: 800; font-size: 22px; letter-spacing: -0.01em; }
+  .facts span { color: var(--muted); font-size: 15px; }
+  @media (max-width: 900px) {
+    .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .facts div:nth-child(3) { padding-left: 0; border-left: 0; }
+    .facts div:nth-child(n + 3) { border-top: 1px solid var(--line); }
+  }
+
+  .gallery { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px 28px; }
+  .gallery figure { margin: 0; }
+  .gallery img { border-radius: 14px; border: 1px solid var(--line); }
+  .gallery figcaption { margin-top: 14px; color: var(--muted); font-size: 15px; }
+  .gallery figcaption b { color: var(--text); font-weight: 700; }
+  @media (max-width: 760px) { .gallery { grid-template-columns: 1fr; } }
+
+  .modules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .module { padding: 28px; border-radius: 18px; background: var(--paper); border: 1px solid var(--line); }
+  .module h3 { font-size: 20px; font-weight: 800; margin-bottom: 10px; }
+  .module p { margin: 0; color: var(--muted); font-size: 16px; }
+  .module .bar { display: flex; gap: 4px; margin-bottom: 20px; }
+  .module .bar i { width: 26px; height: 8px; border-radius: 2px; background: var(--soft); }
+  .module .bar i:last-child { width: 9px; background: var(--charge); }
+  @media (max-width: 900px) { .modules { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) { .modules { grid-template-columns: 1fr; } }
+
+  .rules { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 48px; }
+  .rules h3 { font-size: 20px; font-weight: 800; padding-bottom: 14px; margin-bottom: 18px; border-bottom: 2px solid var(--charge); width: fit-content; }
+  .rules ul { margin: 0; padding-left: 18px; color: #D3D2E8; }
+  .rules li + li { margin-top: 10px; }
+  .note { margin-top: 40px; padding: 18px 22px; border-radius: 12px; background: var(--paper); border: 1px solid var(--line); color: #D3D2E8; }
+  @media (max-width: 900px) { .rules { grid-template-columns: 1fr; gap: 36px; } }
+
+  .arch { display: flex; align-items: stretch; flex-wrap: wrap; gap: 0; }
+  .node { flex: 1 1 200px; padding: 22px 24px; border-radius: 16px; background: var(--paper); border: 1px solid var(--line); }
+  .node small { display: block; color: var(--soft); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .node strong { font-family: var(--wide); font-stretch: 112%; font-weight: 800; font-size: 19px; }
+  .node p { margin: 8px 0 0; color: var(--muted); font-size: 15px; }
+  .link { flex: 0 0 88px; text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--muted); font-size: 12px; font-weight: 700; }
+  .link::before { content: ""; width: 100%; height: 2px; background: var(--line); margin-bottom: 6px; }
+  @media (max-width: 900px) { .link { flex-basis: 100%; height: 36px; } .link::before { width: 2px; height: 14px; margin: 0 0 4px; } }
+  .arch-notes { margin: 28px 0 0; padding-left: 18px; color: #D3D2E8; }
+  .arch-notes li + li { margin-top: 8px; }
+
+  .setup { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; }
+  pre { margin: 0; padding: 22px 24px; border-radius: 14px; background: #0B0A1E; border: 1px solid var(--line); overflow-x: auto; font: 500 14px/1.7 ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; color: #E0E3FF; }
+  pre .c { color: #8C8AB0; }
+  .setup h3 { font-size: 18px; font-weight: 800; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; font-size: 13px; padding: 10px 12px 10px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--line); vertical-align: top; color: #D3D2E8; }
+  .setup > div { min-width: 0; }
+  .table-scroll { overflow-x: auto; }
+  @media (max-width: 900px) { .setup { grid-template-columns: 1fr; } }
+
+  .stack { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+  .stack div { padding: 22px; border-radius: 16px; border: 1px solid var(--line); }
+  .stack small { display: block; color: var(--soft); font-weight: 700; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .stack p { margin: 0; color: #D3D2E8; font-size: 15px; }
+  @media (max-width: 900px) { .stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+  footer { padding: 40px 0 56px; color: var(--muted); font-size: 15px; }
+  footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#inicio" aria-label="battiolab, inicio">
+      <svg width="30" height="30" viewBox="0 0 32 32" aria-hidden="true"><rect x="4" y="7.5" width="24" height="17" rx="4.5" fill="none" stroke="#FFFFFF" stroke-width="2.6"/><rect x="7.9" y="11.2" width="10.6" height="9.6" rx="1.4" fill="#A5B4FC"/><rect x="20" y="11.2" width="4.1" height="9.6" rx="1.2" fill="#F59E0B"/></svg>
+      battiolab
+    </a>
+    <nav aria-label="Secciones">
+      <ul>
+        <li><a href="#capturas">Capturas</a></li>
+        <li><a href="#modulos">Módulos</a></li>
+        <li><a href="#reglas">Reglas</a></li>
+        <li><a href="#arquitectura">Arquitectura</a></li>
+        <li><a href="#instalacion">Instalación</a></li>
+        <li><a class="repo" href="https://github.com/bfailach/Battiolab">Repositorio</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="inicio">
+  <div class="hero">
+    <div class="wrap">
+      <p class="eyebrow">Aplicación de escritorio · Colombia</p>
+      <h1>Ventas, inventario y cartera en un solo sistema.</h1>
+      <p class="lead">battiolab opera una tienda y taller de vehículos eléctricos: factura conforme a la normativa DIAN, controla el inventario por lotes, sigue la cartera por antigüedad y administra clientes y nómina.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="https://github.com/bfailach/Battiolab">Ver el código en GitHub</a>
+        <a class="btn btn-ghost" href="#instalacion">Instalación</a>
+      </div>
+      <img class="shot" src="screenshots/inicio.webp" width="1800" height="1125" alt="Panel de inicio con ingresos del mes, ventas del día, cartera pendiente y carga del inventario">
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="facts" aria-label="Datos clave">
+      <div><strong>DIAN</strong><span>Factura con resolución, prefijo, rango y vigencia</span></div>
+      <div><strong>IVA por tarifa</strong><span>19 %, 5 % o excluido, desagregado por línea</span></div>
+      <div><strong>Lotes</strong><span>Costo, proveedor, garantía e historial de movimientos</span></div>
+      <div><strong>Cartera</strong><span>Antigüedad de saldos y registro de pagos</span></div>
+    </div>
+  </div>
+
+  <section id="capturas">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Capturas</h2>
+        <p>Interfaz real de la aplicación con datos de demostración.</p>
+      </div>
+      <div class="gallery">
+        <figure><img src="screenshots/factura.webp" width="1800" height="1125" loading="lazy" alt="Factura electrónica de venta con resolución DIAN, IVA discriminado y total en letras"><figcaption><b>Factura de venta.</b> Emisor, resolución DIAN, adquirente, IVA por tarifa y total en letras. Exportable a PDF.</figcaption></figure>
+        <figure><img src="screenshots/nueva-venta.webp" width="1800" height="1125" loading="lazy" alt="Registro de una nueva venta con selección de cliente y productos"><figcaption><b>Nueva venta.</b> Contado o crédito, consumidor final y validación de existencias antes de facturar.</figcaption></figure>
+        <figure><img src="screenshots/cartera.webp" width="1800" height="1125" loading="lazy" alt="Cartera por antigüedad con facturas vencidas y al día"><figcaption><b>Cartera.</b> Saldos agrupados por antigüedad, días de mora y registro de pagos.</figcaption></figure>
+        <figure><img src="screenshots/facturas.webp" width="1800" height="1125" loading="lazy" alt="Listado de facturas con estado de pago"><figcaption><b>Facturas.</b> Recaudo, IVA generado, cuentas por cobrar y anulaciones con nota crédito.</figcaption></figure>
+        <figure><img src="screenshots/existencias.webp" width="1800" height="1125" loading="lazy" alt="Existencias con nivel de stock y valor del inventario"><figcaption><b>Existencias.</b> Nivel de stock, precio con IVA y valor del inventario por producto.</figcaption></figure>
+        <figure><img src="screenshots/alertas-stock.webp" width="1800" height="1125" loading="lazy" alt="Alertas de productos agotados y bajo el mínimo"><figcaption><b>Alertas de stock.</b> Productos agotados o bajo el mínimo, con cantidad sugerida de pedido.</figcaption></figure>
+        <figure><img src="screenshots/clientes.webp" width="1800" height="1125" loading="lazy" alt="Directorio de clientes con historial de compras"><figcaption><b>Clientes.</b> Personas naturales y jurídicas con NIT, historial y total comprado.</figcaption></figure>
+        <figure><img src="screenshots/reportes.webp" width="1800" height="1125" loading="lazy" alt="Reportes de ventas con ingresos diarios y ticket promedio"><figcaption><b>Reportes.</b> Ingresos por día, ticket promedio, productos más vendidos y ventas por categoría.</figcaption></figure>
+        <figure><img src="screenshots/empleados.webp" width="1800" height="1125" loading="lazy" alt="Directorio de empleados con cargo, departamento, antigüedad y salario"><figcaption><b>Empleados.</b> Cargo, departamento, antigüedad, salario y retiros.</figcaption></figure>
+        <figure><img src="screenshots/acceso.webp" width="1800" height="1125" loading="lazy" alt="Pantalla de inicio de sesión"><figcaption><b>Acceso.</b> Sesión con JWT. La primera cuenta registrada es administradora.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section id="modulos">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Módulos</h2>
+        <p>Seis módulos cubren el ciclo completo de la operación.</p>
+      </div>
+      <div class="modules">
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Inicio</h3><p>Ingresos del mes, ventas del día, cartera pendiente, carga del inventario y productos más vendidos.</p></article>
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Ventas</h3><p>Facturas, venta de contado o a crédito, consumidor final, cartera por antigüedad, reportes y configuración.</p></article>
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Inventario</h3><p>Existencias, alertas de stock, catálogo con imágenes, lotes, historial de movimientos y escaneo de códigos.</p></article>
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Clientes</h3><p>Directorio, segmentos de mejores, recurrentes, nuevos y sin actividad, historial de compras y reportes.</p></article>
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Empleados</h3><p>Directorio, departamentos, reportes de nómina y antigüedad, retiros, cargos y áreas.</p></article>
+        <article class="module"><div class="bar" aria-hidden="true"><i></i><i></i></div><h3>Empresa</h3><p>Datos del emisor, resolución de facturación DIAN, pie de factura, UVT y salario mínimo.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section id="reglas">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Reglas de negocio</h2>
+        <p>La API aplica cada regla en el servidor. La interfaz no puede saltarlas.</p>
+      </div>
+      <div class="rules">
+        <div>
+          <h3>Facturación</h3>
+          <ul>
+            <li>Requisitos del art. 617 del Estatuto Tributario y del art. 11 de la Resolución DIAN 000165 de 2023 que dependen del sistema.</li>
+            <li>Numeración con el prefijo y rango de la resolución. Se rechaza facturar fuera del rango o con la resolución vencida.</li>
+            <li>Facturas inmutables: se anulan con nota crédito y el inventario se repone.</li>
+            <li>Precio con IVA incluido desagregado en base e impuesto con total exacto.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Inventario</h3>
+          <ul>
+            <li>Cada venta descuenta stock. La venta sin existencias está bloqueada salvo configuración explícita.</li>
+            <li>Los lotes suman stock con costo, proveedor y garantía.</li>
+            <li>Todo cambio de existencias queda en el historial de movimientos.</li>
+            <li>Un producto con ventas o lotes se descontinúa, no se elimina.</li>
+          </ul>
+        </div>
+        <div>
+          <h3>Clientes y usuarios</h3>
+          <ul>
+            <li>Cédula de 6 a 10 dígitos y NIT de 9 dígitos con dígito de verificación calculado.</li>
+            <li>Teléfonos de 10 dígitos: celular 3xx o fijo 601 a 608.</li>
+            <li>Las ventas a crédito exigen un cliente identificado.</li>
+            <li>Solo los administradores modifican la configuración.</li>
+          </ul>
+        </div>
+      </div>
+      <p class="note">battiolab no transmite documentos a la DIAN. El CUFE, la firma digital y el código QR los asigna un proveedor tecnológico autorizado.</p>
+    </div>
+  </section>
+
+  <section id="arquitectura">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Arquitectura</h2>
+        <p>Cliente de escritorio aislado sobre una API REST con MongoDB.</p>
+      </div>
+      <div class="arch">
+        <div class="node"><small>Escritorio</small><strong>Electron</strong><p>Proceso principal con <code>contextIsolation</code> y sin <code>nodeIntegration</code>.</p></div>
+        <div class="link" aria-hidden="true"></div>
+        <div class="node"><small>Interfaz</small><strong>React + Material UI</strong><p>TypeScript, React Router y Recharts.</p></div>
+        <div class="link">HTTP + JWT</div>
+        <div class="node"><small>API</small><strong>Express</strong><p>Validación, reglas de negocio, numeración y permisos.</p></div>
+        <div class="link" aria-hidden="true"></div>
+        <div class="node"><small>Datos</small><strong>MongoDB</strong><p>Modelos con Mongoose e imágenes de productos en disco.</p></div>
+      </div>
+      <ul class="arch-notes">
+        <li>Los totales, el IVA, la numeración y el stock se calculan en el servidor.</li>
+        <li>La autenticación usa JWT y las contraseñas se almacenan con hash bcrypt.</li>
+        <li>Cada push y pull request ejecuta auditoría de dependencias, lint, pruebas con cobertura y build en GitHub Actions.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="instalacion">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Instalación</h2>
+        <p>Requisitos: Node.js 18 o superior y MongoDB 6 o superior, local o remoto.</p>
+      </div>
+      <div class="setup">
+        <div>
+          <h3>Instalar y ejecutar</h3>
+<pre><code>git clone https://github.com/bfailach/Battiolab.git
+cd Battiolab
+npm install
+npm install --prefix server
+cp server/.env.example server/.env
+
+<span class="c"># con MongoDB en ejecución</span>
+npm run app   <span class="c"># compila e inicia la aplicación</span>
+npm run dev   <span class="c"># modo desarrollo</span></code></pre>
+        </div>
+        <div>
+          <h3>Variables de <code>server/.env</code></h3>
+          <div class="table-scroll"><table>
+            <thead><tr><th scope="col">Variable</th><th scope="col">Uso</th></tr></thead>
+            <tbody>
+              <tr><td><code>MONGODB_URI</code></td><td>Cadena de conexión a MongoDB. Obligatoria.</td></tr>
+              <tr><td><code>JWT_SECRET</code></td><td>Clave larga y aleatoria para firmar sesiones. Obligatoria.</td></tr>
+              <tr><td><code>PORT</code></td><td>Puerto de la API. Por defecto <code>3006</code>.</td></tr>
+              <tr><td><code>SITE_CODE</code></td><td>Código de sede exigido en el registro.</td></tr>
+              <tr><td><code>CORS_ORIGINS</code></td><td>Orígenes permitidos, separados por comas.</td></tr>
+              <tr><td><code>UPLOAD_DIR</code></td><td>Carpeta de imágenes de productos.</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tecnologias" style="border-bottom: 0">
+    <div class="wrap">
+      <div class="section-head"><h2>Tecnologías</h2></div>
+      <div class="stack">
+        <div><small>Escritorio</small><p>Electron 45</p></div>
+        <div><small>Interfaz</small><p>React 18, TypeScript, Material UI 5, Recharts, React Router 6</p></div>
+        <div><small>API</small><p>Node.js, Express 4, Mongoose 7, JWT, bcrypt</p></div>
+        <div><small>Datos</small><p>MongoDB</p></div>
+        <div><small>Calidad</small><p>Jest, Supertest, ESLint, Prettier, GitHub Actions</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Desarrollado por <a href="https://github.com/bfailach">Bryan Failach</a>. Licencia ISC.</span>
+    <a href="https://github.com/bfailach/Battiolab">github.com/bfailach/Battiolab</a>
+  </div>
+</footer>
+</body>
+</html>
